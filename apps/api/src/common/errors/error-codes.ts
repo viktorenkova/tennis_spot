@@ -1,0 +1,17 @@
+export const ERROR_CODES = {
+  validation: 'VALIDATION_ERROR',
+  unauthorized: 'UNAUTHORIZED',
+  forbidden: 'FORBIDDEN',
+  notFound: 'NOT_FOUND',
+  conflict: 'CONFLICT',
+  internal: 'INTERNAL_ERROR',
+  demoAuthDisabled: 'DEMO_AUTH_DISABLED',
+  demoUserNotFound: 'DEMO_USER_NOT_FOUND',
+  partnerProfileNotFound: 'PARTNER_PROFILE_NOT_FOUND',
+  verificationRequestNotFound: 'VERIFICATION_REQUEST_NOT_FOUND',
+  verificationRequestAlreadyPending: 'VERIFICATION_REQUEST_ALREADY_PENDING',
+  verificationRequestAlreadyFinalized: 'VERIFICATION_REQUEST_ALREADY_FINALIZED',
+  verificationRequestInvalidTransition: 'VERIFICATION_REQUEST_INVALID_TRANSITION',
+  partnerProfileAlreadyExists: 'PARTNER_PROFILE_ALREADY_EXISTS',
+  playerProfileAlreadyExists: 'PLAYER_PROFILE_ALREADY_EXISTS',
+} as const;

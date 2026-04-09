@@ -13,10 +13,12 @@
     "dev:web": "npm run dev --workspace @tennis-spot/web",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace @tennis-spot/api",
     "format": "prettier --write .",
     "db:generate": "npm run prisma:generate --workspace @tennis-spot/api",
     "db:migrate": "npm run prisma:migrate --workspace @tennis-spot/api",
-    "db:seed": "npm run prisma:seed --workspace @tennis-spot/api"
+    "db:seed": "npm run prisma:seed --workspace @tennis-spot/api",
+    "db:seed-admin": "npm run prisma:seed-admin --workspace @tennis-spot/api"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",

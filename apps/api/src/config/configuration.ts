@@ -26,5 +26,6 @@ export const configuration = () => ({
     phoneCodeTtlMinutes: Number(process.env.AUTH_PHONE_CODE_TTL_MINUTES ?? 10),
     phoneCodeLength: Number(process.env.AUTH_PHONE_CODE_LENGTH ?? 4),
     returnDevCode: process.env.AUTH_DEV_RETURN_CODE === 'true',
+    enableDemoLogin: process.env.AUTH_ENABLE_DEMO_LOGIN !== 'false',
   },
 });

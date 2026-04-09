@@ -1,4 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { AppError } from '../../common/errors/app-error';
+import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AddVerificationDocumentDto } from './dto/add-verification-document.dto';
 
@@ -12,7 +15,10 @@ export class VerificationService {
     });
 
     if (!partnerProfile) {
-      throw new NotFoundException('Partner profile not found.');
+      throw new AppError(HttpStatus.NOT_FOUND, {
+        code: ERROR_CODES.partnerProfileNotFound,
+        message: 'Partner profile not found.',
+      });
     }
 
     const request = await this.ensureDraftRequest(partnerProfile.id);
@@ -48,7 +54,40 @@ export class VerificationService {
     });
 
     if (!partnerProfile) {
-      throw new NotFoundException('Partner profile not found.');
+      throw new AppError(HttpStatus.NOT_FOUND, {
+        code: ERROR_CODES.partnerProfileNotFound,
+        message: 'Partner profile not found.',
+      });
+    }
+
+    if (partnerProfile.verificationStatus === 'pending_verification') {
+      throw new AppError(HttpStatus.CONFLICT, {
+        code: ERROR_CODES.verificationRequestAlreadyPending,
+        message: 'Verification request is already pending review.',
+      });
+    }
+
+    if (partnerProfile.verificationStatus === 'verified') {
+      throw new AppError(HttpStatus.CONFLICT, {
+        code: ERROR_CODES.verificationRequestInvalidTransition,
+        message: 'Verified partner profile cannot be resubmitted.',
+      });
+    }
+
+    const activeRequest = await this.prisma.verificationRequest.findFirst({
+      where: {
+        partnerProfileId: partnerProfile.id,
+        status: {
+          in: ['submitted', 'in_review'],
+        },
+      },
+    });
+
+    if (activeRequest) {
+      throw new AppError(HttpStatus.CONFLICT, {
+        code: ERROR_CODES.verificationRequestAlreadyPending,
+        message: 'Verification request is already pending review.',
+      });
     }
 
     const request = await this.ensureDraftRequest(partnerProfile.id);
@@ -61,13 +100,16 @@ export class VerificationService {
         },
       });
 
-      return tx.verificationRequest.update({
+      const updatedRequest = await tx.verificationRequest.update({
         where: { id: request.id },
         data: {
           status: 'submitted',
           submittedAt: new Date(),
+          reviewedAt: null,
+          comment: null,
         },
         include: {
+          partnerProfile: true,
           documents: {
             include: {
               file: true,
@@ -75,6 +117,22 @@ export class VerificationService {
           },
         },
       });
+
+      await tx.auditLog.create({
+        data: {
+          actorUserId: userId,
+          action: 'verification_request.submitted',
+          targetEntity: 'verification_request',
+          targetId: request.id,
+          metadata: {
+            partnerProfileId: partnerProfile.id,
+            previousStatus: request.status,
+            nextStatus: 'submitted',
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      return updatedRequest;
     });
   }
 
@@ -84,7 +142,10 @@ export class VerificationService {
     });
 
     if (!partnerProfile) {
-      throw new NotFoundException('Partner profile not found.');
+      throw new AppError(HttpStatus.NOT_FOUND, {
+        code: ERROR_CODES.partnerProfileNotFound,
+        message: 'Partner profile not found.',
+      });
     }
 
     return this.prisma.verificationRequest.findFirst({
@@ -92,6 +153,7 @@ export class VerificationService {
         partnerProfileId: partnerProfile.id,
       },
       include: {
+        partnerProfile: true,
         documents: {
           include: {
             file: true,
@@ -121,11 +183,27 @@ export class VerificationService {
       return existing;
     }
 
-    return this.prisma.verificationRequest.create({
-      data: {
-        partnerProfileId,
-        status: 'draft',
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const request = await tx.verificationRequest.create({
+        data: {
+          partnerProfileId,
+          status: 'draft',
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: 'verification_request.draft_created',
+          targetEntity: 'verification_request',
+          targetId: request.id,
+          metadata: {
+            partnerProfileId,
+            status: 'draft',
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      return request;
     });
   }
 }

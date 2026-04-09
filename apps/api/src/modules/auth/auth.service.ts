@@ -1,9 +1,13 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { StringValue } from 'ms';
+import { AppError } from '../../common/errors/app-error';
+import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { DEMO_USERS } from './constants/demo-users.constant';
+import { DemoLoginDto } from './dto/demo-login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestPhoneCodeDto } from './dto/request-phone-code.dto';
@@ -198,11 +202,50 @@ export class AuthService {
     });
   }
 
+  async demoLogin(dto: DemoLoginDto) {
+    if (!this.configService.get<boolean>('auth.enableDemoLogin', true)) {
+      throw new AppError(HttpStatus.FORBIDDEN, {
+        code: ERROR_CODES.demoAuthDisabled,
+        message: 'Demo auth is disabled in this environment.',
+      });
+    }
+
+    const demoUser = DEMO_USERS[dto.userKey];
+
+    const user = await this.prisma.user.findUnique({
+      where: { phone: demoUser.phone },
+      include: {
+        roles: {
+          include: {
+            role: true,
+          },
+        },
+        settings: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError(HttpStatus.NOT_FOUND, {
+        code: ERROR_CODES.demoUserNotFound,
+        message: `Demo user ${dto.userKey} was not found. Run seed first.`,
+      });
+    }
+
+    return {
+      ...(await this.issueTokens(user.id, user.phone, user.roles.map((entry) => entry.role.key))),
+      demoUser: {
+        key: dto.userKey,
+        phone: user.phone,
+        roles: user.roles.map((entry) => entry.role.key),
+      },
+    };
+  }
+
   private async issueTokens(userId: string, phone: string, roles: string[], existingSessionId?: string) {
     const accessToken = await this.jwtService.signAsync(
       { sub: userId, phone, roles },
       {
-        secret: this.configService.get<string>('auth.accessSecret'),
+        secret: this.configService.getOrThrow<string>('auth.accessSecret'),
         expiresIn: this.configService.getOrThrow<string>('auth.accessTtl') as StringValue,
       },
     );

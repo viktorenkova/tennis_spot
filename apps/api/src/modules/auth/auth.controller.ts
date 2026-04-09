@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { DemoLoginDto } from './dto/demo-login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestPhoneCodeDto } from './dto/request-phone-code.dto';
@@ -24,6 +25,12 @@ export class AuthController {
   @ApiOkResponse({ description: 'Verify phone code and issue JWT tokens.' })
   verifyCode(@Body() dto: VerifyPhoneCodeDto) {
     return this.authService.verifyPhoneCode(dto);
+  }
+
+  @Post('demo/login')
+  @ApiOkResponse({ description: 'Development-only shortcut for seeded demo users.' })
+  demoLogin(@Body() dto: DemoLoginDto) {
+    return this.authService.demoLogin(dto);
   }
 
   @Post('refresh')

@@ -68,6 +68,7 @@ model User {
   partnerProfile PartnerProfile?
   adminProfile   AdminProfile?
   uploadedFiles  File[]
+  auditLogs      AuditLog[]
 
   @@map("users")
 }
@@ -348,6 +349,22 @@ model VerificationDocument {
   @@index([verificationRequestId])
   @@index([fileId])
   @@map("verification_documents")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorUserId  String?  @map("actor_user_id") @db.Uuid
+  action       String
+  targetEntity String   @map("target_entity")
+  targetId     String   @map("target_id")
+  comment      String?
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+  actorUser    User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([targetEntity, targetId])
+  @@map("audit_logs")
 }
 
 model AuthPhoneChallenge {

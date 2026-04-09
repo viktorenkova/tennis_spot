@@ -1,48 +1,76 @@
-const foundations = [
-  'NestJS API with Prisma, Swagger and auth/reference/player/partner foundations',
-  'Next.js App Router frontend shell for the web MVP',
-  'PostgreSQL + Redis docker-compose and starter env templates',
-  'Seed strategy for roles, partner types, Moscow and Saint Petersburg',
-];
+import Link from 'next/link';
+import { DemoShell } from '../src/components/demo-shell';
+import { Card, Notice } from '../src/components/ui';
 
-const nextModules = [
-  'Phone-first auth flows with real SMS provider integration boundary',
-  'Player and partner UI flows over the bootstrapped REST contract',
-  'Venue, court scheduling and booking-request workflows',
-  'Conversations, tournaments and moderation modules',
+const demoFlows = [
+  {
+    href: '/demo/auth',
+    title: 'Demo auth',
+    copy: 'Sign in as demo-player, demo-partner, demo-admin or review-partner.',
+  },
+  {
+    href: '/me/player',
+    title: 'Player profile',
+    copy: 'Create or update the player profile over the live REST API.',
+  },
+  {
+    href: '/me/partner',
+    title: 'Partner profile',
+    copy: 'Create the partner profile that will later go into verification review.',
+  },
+  {
+    href: '/me/partner/verification',
+    title: 'Verification submission',
+    copy: 'Submit the partner verification request and inspect current status.',
+  },
+  {
+    href: '/admin/verification-requests',
+    title: 'Admin review queue',
+    copy: 'Review seeded requests or the ones created during the current demo session.',
+  },
 ];
 
 export default function HomePage() {
   return (
-    <main className="page-shell">
-      <section className="hero-card">
-        <p className="eyebrow">tennis_spot</p>
-        <h1>Production-minded foundation for the web MVP</h1>
-        <p className="lead">
-          The monolith foundation is ready to grow around the agreed product model: players,
-          partners, verification, courts, booking requests, matchmaking, chat and tournaments.
-        </p>
-      </section>
-
-      <section className="grid">
-        <article className="panel">
-          <h2>Foundation in place</h2>
-          <ul>
-            {foundations.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
+    <DemoShell
+      title="Reviewable MVP slice"
+      description="This iteration closes one real business loop end-to-end: auth, profiles, verification submission and admin moderation."
+    >
+      <div className="split-grid">
+        <Card accent>
+          <h3>What is already wired</h3>
+          <ul className="bullet-list">
+            <li>Dev-friendly demo auth on top of the existing JWT auth architecture.</li>
+            <li>Player and partner profile CRUD backed by PostgreSQL/Prisma endpoints.</li>
+            <li>Partner verification submission with admin-only review actions.</li>
+            <li>Audit log entries for verification submission and admin decisions.</li>
           </ul>
-        </article>
+        </Card>
 
-        <article className="panel accent">
-          <h2>Next implementation wave</h2>
-          <ul>
-            {nextModules.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </article>
-      </section>
-    </main>
+        <Card>
+          <h3>How to review quickly</h3>
+          <ol className="ordered-list">
+            <li>Open Demo auth and sign in as `demo-partner` to create/update partner data.</li>
+            <li>Submit a verification request on the verification page.</li>
+            <li>Switch to `demo-admin` and open the admin queue.</li>
+            <li>Review one request and change its status.</li>
+          </ol>
+        </Card>
+      </div>
+
+      <Notice title="Fast-path demo">
+        Seed also creates `review-partner` with a submitted verification request, so the admin flow
+        can be reviewed immediately after local startup.
+      </Notice>
+
+      <div className="demo-grid">
+        {demoFlows.map((flow) => (
+          <Link key={flow.href} href={flow.href} className="feature-link">
+            <span className="feature-title">{flow.title}</span>
+            <span className="feature-copy">{flow.copy}</span>
+          </Link>
+        ))}
+      </div>
+    </DemoShell>
   );
 }
