@@ -1,0 +1,363 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  pending
+  active
+  blocked
+  deleted
+}
+
+enum PlayerProfileStatus {
+  draft
+  active
+  limited
+  blocked
+}
+
+enum PartnerVerificationStatus {
+  draft
+  pending_verification
+  verified
+  rejected
+  suspended
+  archived
+}
+
+enum VerificationRequestStatus {
+  draft
+  submitted
+  in_review
+  approved
+  rejected
+  needs_correction
+}
+
+enum RoleKey {
+  player
+  partner
+  admin
+  superadmin
+}
+
+enum PartnerTypeKey {
+  club
+  school
+  organizer
+  store
+  mixed
+}
+
+model User {
+  id             String          @id @default(uuid()) @db.Uuid
+  phone          String          @unique
+  status         UserStatus      @default(pending)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  deletedAt      DateTime?       @map("deleted_at")
+  roles          UserRole[]
+  sessions       UserSession[]
+  settings       UserSetting?
+  playerProfile  PlayerProfile?
+  partnerProfile PartnerProfile?
+  adminProfile   AdminProfile?
+  uploadedFiles  File[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String    @id @default(uuid()) @db.Uuid
+  key         RoleKey   @unique
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model UserSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @map("refresh_token_hash")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+model UserSetting {
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @unique @map("user_id") @db.Uuid
+  locale               String   @default("ru")
+  timezone             String   @default("Europe/Moscow")
+  notificationsEnabled Boolean  @default(true) @map("notifications_enabled")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model City {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  slug               String                 @unique
+  name               String                 @unique
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  districts          District[]
+  playerProfiles     PlayerProfile[]
+  playerPreferences  PlayerPlayPreference[] @relation("preferred_city")
+  partnerProfiles    PartnerProfile[]
+
+  @@map("cities")
+}
+
+model District {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  cityId             String                 @map("city_id") @db.Uuid
+  slug               String
+  name               String
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  city               City                   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  playerProfiles     PlayerProfile[]
+  playerPreferences  PlayerPlayPreference[] @relation("preferred_district")
+  partnerProfiles    PartnerProfile[]
+
+  @@unique([cityId, slug])
+  @@unique([cityId, name])
+  @@index([cityId])
+  @@map("districts")
+}
+
+model File {
+  id               String                 @id @default(uuid()) @db.Uuid
+  originalName     String                 @map("original_name")
+  storageBucket    String                 @map("storage_bucket")
+  storageKey       String                 @unique @map("storage_key")
+  mimeType         String                 @map("mime_type")
+  sizeBytes        Int                    @map("size_bytes")
+  uploadedByUserId String?                @map("uploaded_by_user_id") @db.Uuid
+  createdAt        DateTime               @default(now()) @map("created_at")
+  uploadedByUser   User?                  @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  playerAvatars    PlayerProfile[]        @relation("player_avatar_file")
+  verificationDocs VerificationDocument[]
+
+  @@index([uploadedByUserId])
+  @@map("files")
+}
+
+model PlayerProfile {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  userId             String                  @unique @map("user_id") @db.Uuid
+  status             PlayerProfileStatus     @default(draft)
+  firstName          String                  @map("first_name")
+  lastName           String                  @map("last_name")
+  bio                String?
+  ntrpSelfRating     Decimal?                @map("ntrp_self_rating") @db.Decimal(3, 1)
+  cityId             String?                 @map("city_id") @db.Uuid
+  districtId         String?                 @map("district_id") @db.Uuid
+  avatarFileId       String?                 @unique @map("avatar_file_id") @db.Uuid
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+  user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city               City?                   @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  district           District?               @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  avatarFile         File?                   @relation("player_avatar_file", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  visibilitySettings PlayerVisibilitySetting?
+  playPreferences    PlayerPlayPreference?
+  availabilitySlots  PlayerAvailabilitySlot[]
+
+  @@index([cityId])
+  @@index([districtId])
+  @@map("player_profiles")
+}
+
+model PlayerVisibilitySetting {
+  id                            String        @id @default(uuid()) @db.Uuid
+  playerProfileId               String        @unique @map("player_profile_id") @db.Uuid
+  profileVisibleToAuthenticated Boolean       @default(true) @map("profile_visible_to_authenticated")
+  showPhone                     Boolean       @default(false) @map("show_phone")
+  showCity                      Boolean       @default(true) @map("show_city")
+  showAvailability              Boolean       @default(true) @map("show_availability")
+  createdAt                     DateTime      @default(now()) @map("created_at")
+  updatedAt                     DateTime      @updatedAt @map("updated_at")
+  playerProfile                 PlayerProfile @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
+
+  @@map("player_visibility_settings")
+}
+
+model PlayerPlayPreference {
+  id                  String        @id @default(uuid()) @db.Uuid
+  playerProfileId     String        @unique @map("player_profile_id") @db.Uuid
+  preferredFormats    String[]      @default([]) @map("preferred_formats")
+  preferredDays       String[]      @default([]) @map("preferred_days")
+  preferredTimes      String[]      @default([]) @map("preferred_times")
+  preferredCityId     String?       @map("preferred_city_id") @db.Uuid
+  preferredDistrictId String?       @map("preferred_district_id") @db.Uuid
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  playerProfile       PlayerProfile @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
+  preferredCity       City?         @relation("preferred_city", fields: [preferredCityId], references: [id], onDelete: SetNull)
+  preferredDistrict   District?     @relation("preferred_district", fields: [preferredDistrictId], references: [id], onDelete: SetNull)
+
+  @@index([preferredCityId])
+  @@index([preferredDistrictId])
+  @@map("player_play_preferences")
+}
+
+model PlayerAvailabilitySlot {
+  id              String        @id @default(uuid()) @db.Uuid
+  playerProfileId String        @map("player_profile_id") @db.Uuid
+  weekday         Int
+  startTime       String        @map("start_time")
+  endTime         String        @map("end_time")
+  isActive        Boolean       @default(true) @map("is_active")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  playerProfile   PlayerProfile @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([playerProfileId])
+  @@map("player_availability_slots")
+}
+
+model PartnerType {
+  id           String               @id @default(uuid()) @db.Uuid
+  key          PartnerTypeKey       @unique
+  name         String
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+  profileTypes PartnerProfileType[]
+
+  @@map("partner_types")
+}
+
+model PartnerProfile {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  ownerUserId          String                    @unique @map("owner_user_id") @db.Uuid
+  legalName            String                    @map("legal_name")
+  brandName            String?                   @map("brand_name")
+  description          String?
+  verificationStatus   PartnerVerificationStatus @default(draft) @map("verification_status")
+  cityId               String?                   @map("city_id") @db.Uuid
+  districtId           String?                   @map("district_id") @db.Uuid
+  createdAt            DateTime                  @default(now()) @map("created_at")
+  updatedAt            DateTime                  @updatedAt @map("updated_at")
+  ownerUser            User                      @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  city                 City?                     @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  district             District?                 @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  profileTypes         PartnerProfileType[]
+  contacts             PartnerContact[]
+  verificationRequests VerificationRequest[]
+
+  @@index([cityId])
+  @@index([districtId])
+  @@map("partner_profiles")
+}
+
+model PartnerProfileType {
+  id               String         @id @default(uuid()) @db.Uuid
+  partnerProfileId String         @map("partner_profile_id") @db.Uuid
+  partnerTypeId    String         @map("partner_type_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at")
+  partnerProfile   PartnerProfile @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
+  partnerType      PartnerType    @relation(fields: [partnerTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerProfileId, partnerTypeId])
+  @@index([partnerTypeId])
+  @@map("partner_profile_types")
+}
+
+model PartnerContact {
+  id               String         @id @default(uuid()) @db.Uuid
+  partnerProfileId String         @map("partner_profile_id") @db.Uuid
+  type             String
+  value            String
+  label            String?
+  isPrimary        Boolean        @default(false) @map("is_primary")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  partnerProfile   PartnerProfile @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([partnerProfileId])
+  @@map("partner_contacts")
+}
+
+model AdminProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  displayName String?  @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_profiles")
+}
+
+model VerificationRequest {
+  id               String                    @id @default(uuid()) @db.Uuid
+  partnerProfileId String                    @map("partner_profile_id") @db.Uuid
+  status           VerificationRequestStatus @default(draft)
+  comment          String?
+  submittedAt      DateTime?                 @map("submitted_at")
+  reviewedAt       DateTime?                 @map("reviewed_at")
+  createdAt        DateTime                  @default(now()) @map("created_at")
+  updatedAt        DateTime                  @updatedAt @map("updated_at")
+  partnerProfile   PartnerProfile            @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
+  documents        VerificationDocument[]
+
+  @@index([partnerProfileId])
+  @@map("verification_requests")
+}
+
+model VerificationDocument {
+  id                    String              @id @default(uuid()) @db.Uuid
+  verificationRequestId String              @map("verification_request_id") @db.Uuid
+  fileId                String              @map("file_id") @db.Uuid
+  documentType          String              @map("document_type")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  verificationRequest   VerificationRequest @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
+  file                  File                @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([verificationRequestId])
+  @@index([fileId])
+  @@map("verification_documents")
+}
+
+model AuthPhoneChallenge {
+  id         String    @id @default(uuid()) @db.Uuid
+  phone      String
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([phone])
+  @@map("auth_phone_challenges")
+}

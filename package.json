@@ -1,0 +1,32 @@
+{
+  "name": "tennis-spot",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@10.9.3",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace @tennis-spot/api\" \"npm run dev --workspace @tennis-spot/web\"",
+    "dev:api": "npm run dev --workspace @tennis-spot/api",
+    "dev:web": "npm run dev --workspace @tennis-spot/web",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "db:generate": "npm run prisma:generate --workspace @tennis-spot/api",
+    "db:migrate": "npm run prisma:migrate --workspace @tennis-spot/api",
+    "db:seed": "npm run prisma:seed --workspace @tennis-spot/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.24.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.24.0",
+    "eslint-config-next": "^15.2.4",
+    "eslint-config-prettier": "^10.1.2",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.29.1"
+  }
+}
