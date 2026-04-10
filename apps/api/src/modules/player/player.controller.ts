@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
@@ -14,7 +14,7 @@ import { PlayerService } from './player.service';
 @UseGuards(AccessTokenGuard)
 @Controller()
 export class PlayerController {
-  constructor(private readonly playerService: PlayerService) {}
+  constructor(@Inject(PlayerService) private readonly playerService: PlayerService) {}
 
   @Get('player/profile/me')
   getMyProfile(@CurrentUser() user: JwtPayload) {

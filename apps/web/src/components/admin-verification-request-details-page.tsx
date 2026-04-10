@@ -2,6 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../lib/api';
+import {
+  formatAuditAction,
+  formatDateTime,
+  formatDocumentType,
+  formatPartnerType,
+  formatPartnerVerificationStatus,
+  formatVerificationRequestStatus,
+} from '../lib/labels';
 import { hasRole, useDemoSession } from '../lib/session';
 import { DemoShell } from './demo-shell';
 import { Card, Notice } from './ui';
@@ -48,9 +56,9 @@ type VerificationDetails = {
 };
 
 const actionLabels = {
-  approve: 'Approve',
-  reject: 'Reject',
-  needsCorrection: 'Needs correction',
+  approve: 'Одобрить',
+  reject: 'Отклонить',
+  needsCorrection: 'Вернуть на доработку',
 } as const;
 
 export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: string }) {
@@ -76,7 +84,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
     );
 
     if (!response.success || !response.data) {
-      setError(response.error?.message ?? 'Failed to load request details.');
+      setError(response.error?.message ?? 'Не удалось загрузить детали заявки.');
       return;
     }
 
@@ -111,27 +119,27 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
     });
 
     if (!response.success) {
-      setError(response.error?.message ?? `Failed to ${actionLabels[action].toLowerCase()} request.`);
+      setError(response.error?.message ?? 'Не удалось выполнить действие по заявке.');
       setLoading(false);
       return;
     }
 
-    setMessage(`${actionLabels[action]} action completed.`);
+    setMessage(`Действие "${actionLabels[action]}" выполнено.`);
     setLoading(false);
     await load();
   };
 
   return (
     <DemoShell
-      title="Verification request details"
-      description="Admin-only review screen with status, documents, audit log and review actions."
+      title="Детали заявки на верификацию"
+      description="Экран модерации для администратора со статусом, документами, аудит-логом и управляющими действиями."
     >
-      {!isLoaded ? <Notice>Loading session...</Notice> : null}
+      {!isLoaded ? <Notice>Загрузка сессии...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Sign in as `demo-admin` before opening verification details.</Notice>
+        <Notice kind="error">Перед открытием деталей заявки войдите как `demo-admin`.</Notice>
       ) : null}
       {session && !canUseAdminFlow ? (
-        <Notice kind="error">This page is restricted to admin and superadmin roles.</Notice>
+        <Notice kind="error">Эта страница доступна только ролям admin и superadmin.</Notice>
       ) : null}
       {message ? <Notice kind="success">{message}</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
@@ -140,42 +148,45 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
         <>
           <div className="split-grid">
             <Card accent>
-              <h3>Request summary</h3>
+              <h3>Сводка по заявке</h3>
               <p className="session-line">
-                <strong>Status:</strong> {details.status}
+                <strong>Статус заявки:</strong> {formatVerificationRequestStatus(details.status)}
               </p>
               <p className="session-line">
-                <strong>Partner status:</strong> {details.partnerProfile.verificationStatus}
+                <strong>Статус партнера:</strong>{' '}
+                {formatPartnerVerificationStatus(details.partnerProfile.verificationStatus)}
               </p>
               <p className="session-line">
-                <strong>Submitted:</strong> {details.submittedAt ?? 'Not submitted'}
+                <strong>Отправлена:</strong> {formatDateTime(details.submittedAt, 'Еще не отправлена')}
               </p>
               <p className="session-line">
-                <strong>Reviewed:</strong> {details.reviewedAt ?? 'Not reviewed yet'}
+                <strong>Рассмотрена:</strong> {formatDateTime(details.reviewedAt, 'Еще не рассмотрена')}
               </p>
             </Card>
 
             <Card>
-              <h3>Partner profile</h3>
+              <h3>Профиль партнера</h3>
               <p className="session-line">
-                <strong>Name:</strong>{' '}
+                <strong>Название:</strong>{' '}
                 {details.partnerProfile.brandName ?? details.partnerProfile.legalName}
               </p>
               <p className="session-line">
-                <strong>Phone:</strong> {details.partnerProfile.ownerUser.phone}
+                <strong>Телефон:</strong> {details.partnerProfile.ownerUser.phone}
               </p>
               <p className="session-line">
-                <strong>Types:</strong>{' '}
-                {details.partnerProfile.profileTypes.map(({ partnerType }) => partnerType.key).join(', ')}
+                <strong>Типы:</strong>{' '}
+                {details.partnerProfile.profileTypes
+                  .map(({ partnerType }) => formatPartnerType(partnerType.key))
+                  .join(', ')}
               </p>
-              <p className="muted">{details.partnerProfile.description ?? 'No description'}</p>
+              <p className="muted">{details.partnerProfile.description ?? 'Описание не заполнено'}</p>
             </Card>
           </div>
 
           <Card>
-            <h3>Review action</h3>
+            <h3>Решение по заявке</h3>
             <label className="field">
-              <span>Review comment</span>
+              <span>Комментарий модератора</span>
               <textarea value={comment} onChange={(event) => setComment(event.target.value)} />
             </label>
 
@@ -186,7 +197,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
                 onClick={() => runAction('approve')}
                 disabled={loading}
               >
-                Approve
+                Одобрить
               </button>
               <button
                 type="button"
@@ -194,7 +205,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
                 onClick={() => runAction('needsCorrection')}
                 disabled={loading}
               >
-                Needs correction
+                Вернуть на доработку
               </button>
               <button
                 type="button"
@@ -202,28 +213,29 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
                 onClick={() => runAction('reject')}
                 disabled={loading}
               >
-                Reject
+                Отклонить
               </button>
             </div>
           </Card>
 
           <Card>
-            <h3>Documents</h3>
+            <h3>Документы</h3>
             <ul className="bullet-list">
               {details.documents.map((document) => (
                 <li key={document.id}>
-                  {document.documentType}: {document.file.originalName} ({document.file.storageKey})
+                  {formatDocumentType(document.documentType)}: {document.file.originalName} ({document.file.storageKey})
                 </li>
               ))}
             </ul>
           </Card>
 
           <Card>
-            <h3>Audit trail</h3>
+            <h3>Аудит-лог</h3>
             <ul className="bullet-list">
               {details.auditLogs.map((log) => (
                 <li key={log.id}>
-                  {log.action} by {log.actorUser?.phone ?? 'system'} at {log.createdAt}
+                  {formatAuditAction(log.action)} · {log.actorUser?.phone ?? 'система'} ·{' '}
+                  {formatDateTime(log.createdAt)}
                   {log.comment ? ` - ${log.comment}` : ''}
                 </li>
               ))}

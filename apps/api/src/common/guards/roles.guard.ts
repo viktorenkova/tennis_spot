@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Inject,
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -11,7 +12,7 @@ import { JwtPayload } from '../../modules/auth/types/jwt-payload.type';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
@@ -33,7 +34,7 @@ export class RolesGuard implements CanActivate {
     if (!isAllowed) {
       throw new ForbiddenException({
         code: ERROR_CODES.forbidden,
-        message: 'You do not have access to this resource.',
+        message: 'У вас нет доступа к этому ресурсу.',
         fields: {},
       });
     }

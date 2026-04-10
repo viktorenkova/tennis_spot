@@ -44,7 +44,7 @@ export async function apiRequest<T>(
       meta: {},
       error: {
         code: 'NETWORK_ERROR',
-        message: error instanceof Error ? error.message : 'Network request failed.',
+        message: error instanceof Error ? error.message : 'Не удалось выполнить сетевой запрос.',
       },
     };
   }

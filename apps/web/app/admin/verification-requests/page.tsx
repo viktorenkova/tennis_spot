@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../../src/lib/api';
+import { formatPartnerVerificationStatus, formatVerificationRequestStatus } from '../../../src/lib/labels';
 import { hasRole, useDemoSession } from '../../../src/lib/session';
 import { DemoShell } from '../../../src/components/demo-shell';
 import { Card, Notice } from '../../../src/components/ui';
@@ -46,7 +47,7 @@ export default function AdminVerificationRequestsPage() {
     );
 
     if (!response.success || !response.data) {
-      setError(response.error?.message ?? 'Failed to load verification queue.');
+      setError(response.error?.message ?? 'Не удалось загрузить очередь заявок на верификацию.');
       setLoading(false);
       return;
     }
@@ -63,38 +64,38 @@ export default function AdminVerificationRequestsPage() {
 
   return (
     <DemoShell
-      title="Admin verification queue"
-      description="Admin-only list of submitted verification requests with filtering and direct links into the review screen."
+      title="Очередь заявок на верификацию"
+      description="Список заявок для администратора с фильтрацией и переходом в карточку модерации."
     >
-      {!isLoaded ? <Notice>Loading session...</Notice> : null}
+      {!isLoaded ? <Notice>Загрузка сессии...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Sign in as `demo-admin` before opening the admin queue.</Notice>
+        <Notice kind="error">Перед открытием очереди войдите как `demo-admin`.</Notice>
       ) : null}
       {session && !canUseAdminFlow ? (
-        <Notice kind="error">This page is restricted to admin and superadmin roles.</Notice>
+        <Notice kind="error">Эта страница доступна только ролям admin и superadmin.</Notice>
       ) : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
 
       <Card>
-        <h3>Queue filters</h3>
+        <h3>Фильтры очереди</h3>
         <label className="field">
-          <span>Status</span>
+          <span>Статус</span>
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="">All statuses</option>
-            <option value="submitted">submitted</option>
-            <option value="in_review">in_review</option>
-            <option value="approved">approved</option>
-            <option value="rejected">rejected</option>
-            <option value="needs_correction">needs_correction</option>
+            <option value="">Все статусы</option>
+            <option value="submitted">Отправлена</option>
+            <option value="in_review">На рассмотрении</option>
+            <option value="approved">Одобрена</option>
+            <option value="rejected">Отклонена</option>
+            <option value="needs_correction">Требует исправлений</option>
           </select>
         </label>
       </Card>
 
       <Card>
-        <h3>Verification requests</h3>
-        {loading ? <p className="muted">Loading queue...</p> : null}
+        <h3>Заявки на верификацию</h3>
+        {loading ? <p className="muted">Загрузка очереди...</p> : null}
         {!loading && items.length === 0 ? (
-          <p className="muted">No verification requests found for the current filter.</p>
+          <p className="muted">Для выбранного фильтра заявки не найдены.</p>
         ) : null}
 
         <div className="list-stack">
@@ -103,9 +104,11 @@ export default function AdminVerificationRequestsPage() {
               <span>
                 <strong>{item.partnerProfile.brandName ?? item.partnerProfile.legalName}</strong>
                 <br />
-                <span className="muted">{item.partnerProfile.ownerUser.phone}</span>
+                <span className="muted">
+                  {item.partnerProfile.ownerUser.phone} · {formatPartnerVerificationStatus(item.partnerProfile.verificationStatus)}
+                </span>
               </span>
-              <span>{item.status}</span>
+              <span>{formatVerificationRequestStatus(item.status)}</span>
             </Link>
           ))}
         </div>

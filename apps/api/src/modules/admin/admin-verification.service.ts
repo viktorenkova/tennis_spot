@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   PartnerVerificationStatus,
   Prisma,
@@ -13,7 +13,7 @@ const REVIEWABLE_STATUSES: VerificationRequestStatus[] = ['submitted', 'in_revie
 
 @Injectable()
 export class AdminVerificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   getVerificationRequests(query: ListVerificationRequestsDto) {
     return this.prisma.verificationRequest.findMany({
@@ -82,7 +82,7 @@ export class AdminVerificationService {
     if (!request) {
       throw new AppError(HttpStatus.NOT_FOUND, {
         code: ERROR_CODES.verificationRequestNotFound,
-        message: 'Verification request not found.',
+        message: 'Заявка на верификацию не найдена.',
       });
     }
 
@@ -161,7 +161,7 @@ export class AdminVerificationService {
     if (!request) {
       throw new AppError(HttpStatus.NOT_FOUND, {
         code: ERROR_CODES.verificationRequestNotFound,
-        message: 'Verification request not found.',
+        message: 'Заявка на верификацию не найдена.',
       });
     }
 
@@ -172,14 +172,14 @@ export class AdminVerificationService {
     ) {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestAlreadyFinalized,
-        message: `Verification request is already finalized with status ${request.status}.`,
+        message: `Заявка уже финализирована в статусе ${request.status}.`,
       });
     }
 
     if (!REVIEWABLE_STATUSES.includes(request.status)) {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestInvalidTransition,
-        message: `Verification request in status ${request.status} cannot be reviewed.`,
+        message: `Заявку в статусе ${request.status} нельзя передать на модерацию.`,
       });
     }
 

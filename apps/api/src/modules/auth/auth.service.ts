@@ -1,5 +1,5 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
-import { HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { StringValue } from 'ms';
@@ -16,9 +16,9 @@ import { VerifyPhoneCodeDto } from './dto/verify-phone-code.dto';
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(JwtService) private readonly jwtService: JwtService,
+    @Inject(ConfigService) private readonly configService: ConfigService,
   ) {}
 
   async requestPhoneCode(dto: RequestPhoneCodeDto) {
@@ -59,7 +59,7 @@ export class AuthService {
     });
 
     if (!challenge || challenge.codeHash !== this.hashValue(dto.code)) {
-      throw new UnauthorizedException('Invalid or expired verification code.');
+      throw new UnauthorizedException('Неверный или просроченный код подтверждения.');
     }
 
     const user = await this.prisma.$transaction(async (tx) => {
@@ -95,7 +95,7 @@ export class AuthService {
       });
 
       if (!playerRole) {
-        throw new UnauthorizedException('Starter roles are not seeded yet.');
+        throw new UnauthorizedException('Стартовые роли еще не созданы через seed.');
       }
 
       return tx.user.create({
@@ -151,7 +151,7 @@ export class AuthService {
     });
 
     if (!session || session.revokedAt || session.refreshTokenHash !== this.hashValue(dto.refreshToken)) {
-      throw new UnauthorizedException('Refresh session is invalid.');
+      throw new UnauthorizedException('Refresh-сессия недействительна.');
     }
 
     return this.issueTokens(
@@ -206,7 +206,7 @@ export class AuthService {
     if (!this.configService.get<boolean>('auth.enableDemoLogin', true)) {
       throw new AppError(HttpStatus.FORBIDDEN, {
         code: ERROR_CODES.demoAuthDisabled,
-        message: 'Demo auth is disabled in this environment.',
+        message: 'Демо-вход отключен в текущем окружении.',
       });
     }
 
@@ -227,7 +227,7 @@ export class AuthService {
     if (!user) {
       throw new AppError(HttpStatus.NOT_FOUND, {
         code: ERROR_CODES.demoUserNotFound,
-        message: `Demo user ${dto.userKey} was not found. Run seed first.`,
+        message: `Демо-пользователь ${dto.userKey} не найден. Сначала выполните seed.`,
       });
     }
 

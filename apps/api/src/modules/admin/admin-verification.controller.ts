@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -13,23 +13,26 @@ import {
   RejectVerificationRequestDto,
 } from './dto/review-verification-request.dto';
 
-@ApiTags('Admin Verification')
+@ApiTags('Админка: верификация')
 @ApiBearerAuth()
 @UseGuards(AccessTokenGuard, RolesGuard)
 @Roles('admin', 'superadmin')
 @Controller('admin/verification-requests')
 export class AdminVerificationController {
-  constructor(private readonly adminVerificationService: AdminVerificationService) {}
+  constructor(
+    @Inject(AdminVerificationService)
+    private readonly adminVerificationService: AdminVerificationService,
+  ) {}
 
   @Get()
-  @ApiOkResponse({ description: 'List verification requests for admin review.' })
+  @ApiOkResponse({ description: 'Получить список заявок на верификацию для модерации администратором.' })
   @ApiQuery({ name: 'status', required: false })
   getVerificationRequests(@Query() query: ListVerificationRequestsDto) {
     return this.adminVerificationService.getVerificationRequests(query);
   }
 
   @Get(':id')
-  @ApiOkResponse({ description: 'Get verification request details for review.' })
+  @ApiOkResponse({ description: 'Получить детальную информацию по заявке на верификацию.' })
   getVerificationRequestById(@Param('id') id: string) {
     return this.adminVerificationService.getVerificationRequestById(id);
   }

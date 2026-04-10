@@ -5,6 +5,6 @@ const demoUserKeys = ['demo-player', 'demo-partner', 'demo-admin', 'review-partn
 
 export class DemoLoginDto {
   @ApiProperty({ enum: demoUserKeys })
-  @IsIn(demoUserKeys)
+  @IsIn(demoUserKeys, { message: 'Указан недопустимый ключ demo-пользователя.' })
   userKey!: (typeof demoUserKeys)[number];
 }

@@ -50,7 +50,7 @@ export function configureApp(app: INestApplication) {
       exceptionFactory: (errors) =>
         new BadRequestException({
           code: 'VALIDATION_ERROR',
-          message: 'Request validation failed.',
+          message: 'Ошибка валидации запроса.',
           fields: formatValidationErrors(errors),
         }),
     }),
@@ -58,7 +58,7 @@ export function configureApp(app: INestApplication) {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('tennis_spot API')
-    .setDescription('MVP REST API for tennis_spot modular monolith.')
+    .setDescription('REST API MVP-платформы tennis_spot.')
     .setVersion('1.0.0')
     .addBearerAuth()
     .build();

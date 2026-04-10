@@ -5,62 +5,62 @@ import { Card, Notice } from '../src/components/ui';
 const demoFlows = [
   {
     href: '/demo/auth',
-    title: 'Demo auth',
-    copy: 'Sign in as demo-player, demo-partner, demo-admin or review-partner.',
+    title: 'Демо-вход',
+    copy: 'Войдите как demo-player, demo-partner, demo-admin или review-partner.',
   },
   {
     href: '/me/player',
-    title: 'Player profile',
-    copy: 'Create or update the player profile over the live REST API.',
+    title: 'Профиль игрока',
+    copy: 'Создайте или обновите профиль игрока через живой REST API.',
   },
   {
     href: '/me/partner',
-    title: 'Partner profile',
-    copy: 'Create the partner profile that will later go into verification review.',
+    title: 'Профиль партнера',
+    copy: 'Создайте профиль партнера, который затем пойдет на верификацию.',
   },
   {
     href: '/me/partner/verification',
-    title: 'Verification submission',
-    copy: 'Submit the partner verification request and inspect current status.',
+    title: 'Подача на верификацию',
+    copy: 'Отправьте заявку на верификацию партнера и проверьте текущий статус.',
   },
   {
     href: '/admin/verification-requests',
-    title: 'Admin review queue',
-    copy: 'Review seeded requests or the ones created during the current demo session.',
+    title: 'Очередь модерации',
+    copy: 'Проверьте seed-заявки или те, что были созданы в текущей демо-сессии.',
   },
 ];
 
 export default function HomePage() {
   return (
     <DemoShell
-      title="Reviewable MVP slice"
-      description="This iteration closes one real business loop end-to-end: auth, profiles, verification submission and admin moderation."
+      title="Обзорный MVP-срез"
+      description="Эта итерация закрывает один реальный бизнес-цикл целиком: авторизация, профили, отправка верификации и модерация администратором."
     >
       <div className="split-grid">
         <Card accent>
-          <h3>What is already wired</h3>
+          <h3>Что уже работает</h3>
           <ul className="bullet-list">
-            <li>Dev-friendly demo auth on top of the existing JWT auth architecture.</li>
-            <li>Player and partner profile CRUD backed by PostgreSQL/Prisma endpoints.</li>
-            <li>Partner verification submission with admin-only review actions.</li>
-            <li>Audit log entries for verification submission and admin decisions.</li>
+            <li>Удобный демо-вход поверх основной JWT-архитектуры авторизации.</li>
+            <li>CRUD для профилей игрока и партнера через PostgreSQL/Prisma.</li>
+            <li>Подача партнерской верификации и действия модерации только для администратора.</li>
+            <li>Реальные записи в аудит-логе для подачи заявки и решений модератора.</li>
           </ul>
         </Card>
 
         <Card>
-          <h3>How to review quickly</h3>
+          <h3>Как быстро пройти сценарий</h3>
           <ol className="ordered-list">
-            <li>Open Demo auth and sign in as `demo-partner` to create/update partner data.</li>
-            <li>Submit a verification request on the verification page.</li>
-            <li>Switch to `demo-admin` and open the admin queue.</li>
-            <li>Review one request and change its status.</li>
+            <li>Откройте страницу демо-входа и войдите как `demo-partner`.</li>
+            <li>Создайте или обновите профиль партнера и отправьте заявку на верификацию.</li>
+            <li>Переключитесь на `demo-admin` и откройте очередь модерации.</li>
+            <li>Откройте одну заявку и измените ее статус.</li>
           </ol>
         </Card>
       </div>
 
-      <Notice title="Fast-path demo">
-        Seed also creates `review-partner` with a submitted verification request, so the admin flow
-        can be reviewed immediately after local startup.
+      <Notice title="Быстрый демонстрационный путь">
+        В seed уже создается `review-partner` с отправленной заявкой на верификацию, поэтому
+        админский сценарий можно смотреть сразу после локального запуска.
       </Notice>
 
       <div className="demo-grid">

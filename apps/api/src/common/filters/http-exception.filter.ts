@@ -23,6 +23,28 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = context.getResponse<Response>();
     const request = context.getRequest<Request>();
 
+    if (this.isDatabaseUnavailableError(exception)) {
+      response.status(HttpStatus.SERVICE_UNAVAILABLE).json({
+        success: false,
+        data: null,
+        meta: {
+          path: request.url,
+          timestamp: new Date().toISOString(),
+        },
+        error: {
+          code: ERROR_CODES.databaseUnavailable,
+          message: 'Подключение к базе данных недоступно.',
+          fields: {},
+          meta: {
+            service: 'database',
+            details: exception instanceof Error ? exception.message : 'Неизвестная ошибка базы данных.',
+          },
+        },
+      });
+
+      return;
+    }
+
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
@@ -31,7 +53,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? this.normalizeHttpException(exception)
         : {
             code: ERROR_CODES.internal,
-            message: 'Unexpected server error.',
+            message: 'Непредвиденная ошибка сервера.',
             fields: {},
             meta: {},
           };
@@ -63,7 +85,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
           message:
             typeof body.message === 'string'
               ? body.message
-              : 'Request validation failed.',
+              : 'Ошибка валидации запроса.',
           fields: body.fields ?? {},
           meta: body.meta ?? {},
         };
@@ -89,7 +111,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message:
           typeof body.message === 'string'
             ? body.message
-            : body.error ?? 'Request failed.',
+            : body.error ?? 'Не удалось выполнить запрос.',
         fields: body.fields ?? {},
         meta: body.meta ?? {},
       };
@@ -97,7 +119,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     return {
       code: this.mapStatusToCode(exception.getStatus()),
-      message: 'Request failed.',
+      message: 'Не удалось выполнить запрос.',
       fields: {},
       meta: {},
     };
@@ -118,5 +140,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
       default:
         return ERROR_CODES.internal;
     }
+  }
+
+  private isDatabaseUnavailableError(exception: unknown) {
+    if (!(exception instanceof Error)) {
+      return false;
+    }
+
+    const prismaLikeError = exception as Error & {
+      code?: string;
+      name?: string;
+    };
+
+    return (
+      prismaLikeError.code === 'P1001' ||
+      prismaLikeError.name === 'PrismaClientInitializationError' ||
+      prismaLikeError.message.includes("Can't reach database server")
+    );
   }
 }

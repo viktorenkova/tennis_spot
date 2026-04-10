@@ -1,14 +1,14 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Inject, Param } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { ReferenceService } from './reference.service';
 
-@ApiTags('Reference')
+@ApiTags('Справочники')
 @Controller('reference')
 export class ReferenceController {
-  constructor(private readonly referenceService: ReferenceService) {}
+  constructor(@Inject(ReferenceService) private readonly referenceService: ReferenceService) {}
 
   @Get('cities')
-  @ApiOkResponse({ description: 'Fetch supported cities with districts.' })
+  @ApiOkResponse({ description: 'Получить поддерживаемые города вместе с районами.' })
   getCities() {
     return this.referenceService.getCities();
   }

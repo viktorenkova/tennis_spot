@@ -10,22 +10,22 @@ const demoUsers: Array<{ key: DemoUserKey; label: string; copy: string }> = [
   {
     key: 'demo-player',
     label: 'demo-player',
-    copy: 'Clean player account for creating a player profile from scratch.',
+    copy: 'Чистый аккаунт игрока для создания профиля с нуля.',
   },
   {
     key: 'demo-partner',
     label: 'demo-partner',
-    copy: 'Clean partner account for creating a partner profile and submitting verification.',
+    copy: 'Чистый аккаунт партнера для создания профиля и отправки верификации.',
   },
   {
     key: 'demo-admin',
     label: 'demo-admin',
-    copy: 'Admin account for the verification moderation queue.',
+    copy: 'Аккаунт администратора для модерации заявок на верификацию.',
   },
   {
     key: 'review-partner',
     label: 'review-partner',
-    copy: 'Seeded partner with a ready-to-review verification request.',
+    copy: 'Партнер из seed с уже готовой к проверке заявкой.',
   },
 ];
 
@@ -54,7 +54,7 @@ export default function DemoAuthPage() {
     });
 
     if (!loginResponse.success || !loginResponse.data) {
-      setError(loginResponse.error?.message ?? 'Demo login failed.');
+      setError(loginResponse.error?.message ?? 'Не удалось выполнить демо-вход.');
       setLoadingKey(null);
       return;
     }
@@ -71,7 +71,7 @@ export default function DemoAuthPage() {
     });
 
     if (!meResponse.success || !meResponse.data) {
-      setError(meResponse.error?.message ?? 'Signed in, but failed to load current user.');
+      setError(meResponse.error?.message ?? 'Вход выполнен, но не удалось загрузить текущего пользователя.');
       setLoadingKey(null);
       return;
     }
@@ -80,14 +80,14 @@ export default function DemoAuthPage() {
       ...nextSession,
       user: meResponse.data as DemoSession['user'],
     });
-    setMessage(`Signed in as ${userKey}.`);
+    setMessage(`Вход выполнен как ${userKey}.`);
     setLoadingKey(null);
   };
 
   return (
     <DemoShell
-      title="Demo auth"
-      description="Development-only sign-in for the seeded demo accounts. This does not replace the phone-first auth design, it only accelerates local review."
+      title="Демо-вход"
+      description="Dev-only вход для seed-аккаунтов. Он не заменяет основную phone-first авторизацию, а лишь ускоряет локальный обзор сценариев."
     >
       {message ? <Notice kind="success">{message}</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
@@ -103,7 +103,7 @@ export default function DemoAuthPage() {
               onClick={() => handleLogin(demoUser.key)}
               disabled={loadingKey === demoUser.key}
             >
-              {loadingKey === demoUser.key ? 'Signing in...' : `Sign in as ${demoUser.label}`}
+              {loadingKey === demoUser.key ? 'Выполняется вход...' : `Войти как ${demoUser.label}`}
             </button>
           </Card>
         ))}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../../src/lib/api';
+import { formatPlayerStatus } from '../../../src/lib/labels';
 import { useDemoSession } from '../../../src/lib/session';
 import { DemoShell } from '../../../src/components/demo-shell';
 import { Card, Notice } from '../../../src/components/ui';
@@ -105,33 +106,38 @@ export default function PlayerProfilePage() {
     });
 
     if (!response.success || !response.data) {
-      setError(response.error?.message ?? 'Failed to save player profile.');
+      setError(response.error?.message ?? 'Не удалось сохранить профиль игрока.');
       setLoading(false);
       return;
     }
 
     setProfile(response.data);
-    setMessage(profile ? 'Player profile updated.' : 'Player profile created.');
+    setMessage(profile ? 'Профиль игрока обновлен.' : 'Профиль игрока создан.');
     setLoading(false);
   };
 
   return (
     <DemoShell
-      title="My player profile"
-      description="Create or update the player profile over the live REST API contract."
+      title="Мой профиль игрока"
+      description="Создайте или обновите профиль игрока через текущий REST API-контракт."
     >
-      {!isLoaded ? <Notice>Loading session...</Notice> : null}
+      {!isLoaded ? <Notice>Загрузка сессии...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Sign in on the Demo auth page before editing your player profile.</Notice>
+        <Notice kind="error">Сначала войдите через страницу демо-входа, а затем редактируйте профиль игрока.</Notice>
       ) : null}
       {message ? <Notice kind="success">{message}</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
 
       <Card>
-        <h3>Player profile form</h3>
+        <h3>Форма профиля игрока</h3>
+        {profile ? (
+          <p className="session-line">
+            <strong>Статус профиля:</strong> {formatPlayerStatus(profile.status)}
+          </p>
+        ) : null}
         <div className="form-grid">
           <label className="field">
-            <span>First name</span>
+            <span>Имя</span>
             <input
               value={form.firstName}
               onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))}
@@ -140,7 +146,7 @@ export default function PlayerProfilePage() {
           </label>
 
           <label className="field">
-            <span>Last name</span>
+            <span>Фамилия</span>
             <input
               value={form.lastName}
               onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))}
@@ -149,7 +155,7 @@ export default function PlayerProfilePage() {
           </label>
 
           <label className="field field-wide">
-            <span>Bio</span>
+            <span>О себе</span>
             <textarea
               value={form.bio}
               onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))}
@@ -158,7 +164,7 @@ export default function PlayerProfilePage() {
           </label>
 
           <label className="field">
-            <span>NTRP self rating</span>
+            <span>Самооценка NTRP</span>
             <input
               value={form.ntrpSelfRating}
               onChange={(event) =>
@@ -169,7 +175,7 @@ export default function PlayerProfilePage() {
           </label>
 
           <label className="field">
-            <span>City</span>
+            <span>Город</span>
             <select
               value={form.cityId}
               onChange={(event) =>
@@ -181,7 +187,7 @@ export default function PlayerProfilePage() {
               }
               disabled={!session}
             >
-              <option value="">Select city</option>
+              <option value="">Выберите город</option>
               {cities.map((city) => (
                 <option key={city.id} value={city.id}>
                   {city.name}
@@ -191,13 +197,13 @@ export default function PlayerProfilePage() {
           </label>
 
           <label className="field">
-            <span>District</span>
+            <span>Район</span>
             <select
               value={form.districtId}
               onChange={(event) => setForm((current) => ({ ...current, districtId: event.target.value }))}
               disabled={!session || !form.cityId}
             >
-              <option value="">Select district</option>
+              <option value="">Выберите район</option>
               {districts.map((district) => (
                 <option key={district.id} value={district.id}>
                   {district.name}
@@ -208,7 +214,7 @@ export default function PlayerProfilePage() {
         </div>
 
         <button type="button" className="primary-button" onClick={submit} disabled={!session || loading}>
-          {loading ? 'Saving...' : profile ? 'Update profile' : 'Create profile'}
+          {loading ? 'Сохраняем...' : profile ? 'Обновить профиль' : 'Создать профиль'}
         </button>
       </Card>
     </DemoShell>

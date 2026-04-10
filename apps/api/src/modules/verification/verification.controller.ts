@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
@@ -11,7 +11,7 @@ import { VerificationService } from './verification.service';
 @UseGuards(AccessTokenGuard)
 @Controller('partner/verification')
 export class VerificationController {
-  constructor(private readonly verificationService: VerificationService) {}
+  constructor(@Inject(VerificationService) private readonly verificationService: VerificationService) {}
 
   @Post('documents')
   addDocument(@CurrentUser() user: JwtPayload, @Body() dto: AddVerificationDocumentDto) {

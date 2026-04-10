@@ -1,25 +1,30 @@
 # tennis_spot
 
-`tennis_spot` is a modular monolith web MVP for players, partners and admins.
-This repository now contains the first reviewable vertical slice for `P1-week1`:
+`tennis_spot` - это web MVP в формате modular monolith для игроков, партнеров и администраторов.
+В репозитории уже собран первый обзорный вертикальный срез `P1-week1`:
 
-- auth with dev-friendly demo login
-- player profile create/update
-- partner profile create/update
-- partner verification submission
-- admin verification review queue
-- audit logs for verification actions
-- minimal reviewable web UI
-- e2e coverage for the slice
+- авторизация с удобным dev-friendly demo login
+- создание и обновление профиля игрока
+- создание и обновление профиля партнера
+- отправка заявки на верификацию партнера
+- очередь модерации заявок для администратора
+- аудит-логи для действий по верификации
+- минимальный reviewable web UI
+- e2e-покрытие для текущего среза
 
-## Stack
+## Язык продукта
+
+- Все пользовательские тексты интерфейса, human-readable сообщения API и Swagger-описания ведем на русском языке.
+- Технические идентификаторы, route paths, enum keys, role keys и статусы в контракте остаются на английском, чтобы не ломать API и доменную модель.
+
+## Стек
 
 - `apps/api` - NestJS + Prisma + PostgreSQL
 - `apps/web` - Next.js App Router + TypeScript
-- `packages/shared` - shared constants
+- `packages/shared` - общие константы
 - `docker-compose.yml` - local PostgreSQL + Redis
 
-## Repository structure
+## Структура репозитория
 
 ```text
 apps/
@@ -29,20 +34,20 @@ packages/
   shared/
 ```
 
-## What is implemented in this slice
+## Что реализовано в текущем срезе
 
 ### Backend
 
-- JWT auth foundation
+- foundation для JWT-авторизации
 - dev-only `POST /auth/demo/login`
 - `GET/PATCH /user/settings`
-- player profile create/update/read
-- partner profile create/update/read
-- partner verification submit/read
-- admin-only verification review endpoints
-- role guard with `admin/superadmin` protection
-- unified response envelope and unified error envelope
-- audit log writes for verification submission and review actions
+- создание, обновление и чтение профиля игрока
+- создание, обновление и чтение профиля партнера
+- отправка и чтение заявки на верификацию
+- admin-only endpoints для модерации верификации
+- role guard с защитой `admin/superadmin`
+- единый response envelope и единый error envelope
+- реальные записи в audit log для подачи и модерации заявок
 
 ### Frontend
 
@@ -54,14 +59,14 @@ packages/
 - `/admin/verification-requests`
 - `/admin/verification-requests/[id]`
 
-### Test coverage
+### Покрытие тестами
 
-- happy path from auth to admin approval
-- non-admin `403`
-- reject without comment `400`
-- unknown request `404`
-- duplicate finalized review `409`
-- duplicate active verification submit `409`
+- happy path от авторизации до admin approval
+- `403` для non-admin
+- `400` при reject без комментария
+- `404` для неизвестной заявки
+- `409` при повторном review уже финализированной заявки
+- `409` при повторной отправке активной заявки на верификацию
 
 ## Environment setup
 

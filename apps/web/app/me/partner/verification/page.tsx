@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../../../src/lib/api';
+import {
+  formatDateTime,
+  formatDocumentType,
+  formatPartnerVerificationStatus,
+  formatVerificationRequestStatus,
+} from '../../../../src/lib/labels';
 import { useDemoSession } from '../../../../src/lib/session';
 import { DemoShell } from '../../../../src/components/demo-shell';
 import { Card, Notice } from '../../../../src/components/ui';
@@ -89,12 +95,12 @@ export default function PartnerVerificationPage() {
     });
 
     if (!response.success) {
-      setError(response.error?.message ?? 'Failed to add demo document.');
+      setError(response.error?.message ?? 'Не удалось добавить демо-документ.');
       setLoading(false);
       return;
     }
 
-    setMessage('Demo verification document added.');
+    setMessage('Демо-документ для верификации добавлен.');
     setLoading(false);
     await loadData();
   };
@@ -114,12 +120,12 @@ export default function PartnerVerificationPage() {
     });
 
     if (!response.success) {
-      setError(response.error?.message ?? 'Failed to submit verification request.');
+      setError(response.error?.message ?? 'Не удалось отправить заявку на верификацию.');
       setLoading(false);
       return;
     }
 
-    setMessage('Verification request submitted.');
+    setMessage('Заявка на верификацию отправлена.');
     setRequest(response.data ?? null);
     setLoading(false);
     await loadData();
@@ -127,40 +133,41 @@ export default function PartnerVerificationPage() {
 
   return (
     <DemoShell
-      title="Partner verification"
-      description="Use this page to inspect current verification state, add a demo document and submit the request into the admin queue."
+      title="Верификация партнера"
+      description="На этой странице можно проверить текущий статус, добавить демо-документ и отправить заявку в очередь модерации."
     >
-      {!isLoaded ? <Notice>Loading session...</Notice> : null}
+      {!isLoaded ? <Notice>Загрузка сессии...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Sign in on the Demo auth page before opening partner verification.</Notice>
+        <Notice kind="error">Сначала войдите через страницу демо-входа, а затем откройте верификацию партнера.</Notice>
       ) : null}
       {!partnerProfile && session ? (
-        <Notice kind="error">Create a partner profile first. The verification request needs a partner profile.</Notice>
+        <Notice kind="error">Сначала создайте профиль партнера. Без него заявку на верификацию отправить нельзя.</Notice>
       ) : null}
       {message ? <Notice kind="success">{message}</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
 
       {partnerProfile ? (
         <Card accent>
-          <h3>Partner verification state</h3>
+          <h3>Текущее состояние верификации</h3>
           <p className="session-line">
-            <strong>Partner:</strong> {partnerProfile.legalName}
+            <strong>Партнер:</strong> {partnerProfile.legalName}
           </p>
           <p className="session-line">
-            <strong>Partner status:</strong> {partnerProfile.verificationStatus}
+            <strong>Статус партнера:</strong> {formatPartnerVerificationStatus(partnerProfile.verificationStatus)}
           </p>
           <p className="session-line">
-            <strong>Latest request:</strong> {request?.status ?? 'No request yet'}
+            <strong>Последняя заявка:</strong>{' '}
+            {request ? formatVerificationRequestStatus(request.status) : 'Заявки пока нет'}
           </p>
         </Card>
       ) : null}
 
       <div className="split-grid">
         <Card>
-          <h3>Add demo document</h3>
+          <h3>Добавить демо-документ</h3>
           <div className="form-grid">
             <label className="field">
-              <span>Document type</span>
+              <span>Тип документа</span>
               <input
                 value={docForm.documentType}
                 onChange={(event) =>
@@ -171,7 +178,7 @@ export default function PartnerVerificationPage() {
             </label>
 
             <label className="field">
-              <span>Original name</span>
+              <span>Исходное имя файла</span>
               <input
                 value={docForm.originalName}
                 onChange={(event) =>
@@ -188,15 +195,15 @@ export default function PartnerVerificationPage() {
             onClick={addDemoDocument}
             disabled={!session || !partnerProfile || loading}
           >
-            {loading ? 'Working...' : 'Add demo document'}
+            {loading ? 'Выполняем...' : 'Добавить демо-документ'}
           </button>
         </Card>
 
         <Card>
-          <h3>Submit verification</h3>
+          <h3>Отправить на верификацию</h3>
           <p className="muted">
-            Submission keeps the flow intentionally simple for this slice. Documents are optional in
-            the demo, but the admin page will display them if you add any.
+            В этом срезе поток намеренно упрощен. Документы в демо необязательны, но если вы их
+            добавите, администратор увидит их на странице модерации.
           </p>
 
           <button
@@ -205,29 +212,29 @@ export default function PartnerVerificationPage() {
             onClick={submitRequest}
             disabled={!session || !partnerProfile || loading}
           >
-            {loading ? 'Submitting...' : 'Submit verification request'}
+            {loading ? 'Отправляем...' : 'Отправить заявку на верификацию'}
           </button>
         </Card>
       </div>
 
       <Card>
-        <h3>Current request details</h3>
-        {!request ? <p className="muted">No verification request has been created yet.</p> : null}
+        <h3>Детали текущей заявки</h3>
+        {!request ? <p className="muted">Заявка на верификацию еще не создана.</p> : null}
         {request ? (
           <>
             <p className="session-line">
-              <strong>Status:</strong> {request.status}
+              <strong>Статус:</strong> {formatVerificationRequestStatus(request.status)}
             </p>
             <p className="session-line">
-              <strong>Submitted at:</strong> {request.submittedAt ?? 'Not submitted'}
+              <strong>Отправлена:</strong> {formatDateTime(request.submittedAt, 'Еще не отправлена')}
             </p>
             <p className="session-line">
-              <strong>Comment:</strong> {request.comment ?? 'No comment'}
+              <strong>Комментарий:</strong> {request.comment ?? 'Комментария нет'}
             </p>
             <ul className="bullet-list">
               {request.documents.map((document) => (
                 <li key={document.id}>
-                  {document.documentType}: {document.file.originalName} ({document.file.mimeType})
+                  {formatDocumentType(document.documentType)}: {document.file.originalName} ({document.file.mimeType})
                 </li>
               ))}
             </ul>

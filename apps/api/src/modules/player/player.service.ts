@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
   NotImplementedException,
@@ -12,7 +13,7 @@ import { UpdatePlayerVisibilityDto } from './dto/update-player-visibility.dto';
 
 @Injectable()
 export class PlayerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   getMyProfile(userId: string) {
     return this.prisma.playerProfile.findUnique({
@@ -32,7 +33,7 @@ export class PlayerService {
     });
 
     if (existing) {
-      throw new ConflictException('Player profile already exists.');
+      throw new ConflictException('Профиль игрока уже существует.');
     }
 
     return this.prisma.playerProfile.create({
@@ -95,7 +96,7 @@ export class PlayerService {
 
   updateAvatar() {
     throw new NotImplementedException(
-      'Avatar upload is reserved for the future S3-backed files module boundary.',
+      'Загрузка аватара будет реализована позже в модуле файлов с S3-совместимым хранилищем.',
     );
   }
 
@@ -137,7 +138,7 @@ export class PlayerService {
     });
 
     if (!player) {
-      throw new NotFoundException('Player profile not found.');
+      throw new NotFoundException('Профиль игрока не найден.');
     }
 
     return player;
@@ -149,7 +150,7 @@ export class PlayerService {
     });
 
     if (!profile) {
-      throw new NotFoundException('Player profile not found.');
+      throw new NotFoundException('Профиль игрока не найден.');
     }
 
     return profile;

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../../src/lib/api';
+import { formatPartnerVerificationStatus } from '../../../src/lib/labels';
 import { useDemoSession } from '../../../src/lib/session';
 import { DemoShell } from '../../../src/components/demo-shell';
 import { Card, Notice } from '../../../src/components/ui';
@@ -31,11 +32,11 @@ type PartnerProfile = {
 };
 
 const partnerTypes: Array<{ key: PartnerTypeKey; label: string }> = [
-  { key: 'club', label: 'Club' },
-  { key: 'school', label: 'School' },
-  { key: 'organizer', label: 'Organizer' },
-  { key: 'store', label: 'Store' },
-  { key: 'mixed', label: 'Mixed' },
+  { key: 'club', label: 'Клуб' },
+  { key: 'school', label: 'Школа' },
+  { key: 'organizer', label: 'Организатор' },
+  { key: 'store', label: 'Магазин' },
+  { key: 'mixed', label: 'Смешанный формат' },
 ];
 
 export default function PartnerProfilePage() {
@@ -128,37 +129,39 @@ export default function PartnerProfilePage() {
     );
 
     if (!response.success || !response.data) {
-      setError(response.error?.message ?? 'Failed to save partner profile.');
+      setError(response.error?.message ?? 'Не удалось сохранить профиль партнера.');
       setLoading(false);
       return;
     }
 
     setProfile(response.data);
-    setMessage(profile ? 'Partner profile updated.' : 'Partner profile created.');
+    setMessage(profile ? 'Профиль партнера обновлен.' : 'Профиль партнера создан.');
     setLoading(false);
   };
 
   return (
     <DemoShell
-      title="My partner profile"
-      description="Create the partner business profile that will later enter verification review."
+      title="Мой профиль партнера"
+      description="Создайте бизнес-профиль партнера, который затем пойдет на верификацию."
     >
-      {!isLoaded ? <Notice>Loading session...</Notice> : null}
+      {!isLoaded ? <Notice>Загрузка сессии...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Sign in on the Demo auth page before editing your partner profile.</Notice>
+        <Notice kind="error">Сначала войдите через страницу демо-входа, а затем редактируйте профиль партнера.</Notice>
       ) : null}
       {message ? <Notice kind="success">{message}</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
 
       {profile ? (
-        <Notice title="Current verification status">{profile.verificationStatus}</Notice>
+        <Notice title="Текущий статус верификации">
+          {formatPartnerVerificationStatus(profile.verificationStatus)}
+        </Notice>
       ) : null}
 
       <Card>
-        <h3>Partner profile form</h3>
+        <h3>Форма профиля партнера</h3>
         <div className="form-grid">
           <label className="field">
-            <span>Legal name</span>
+            <span>Юридическое название</span>
             <input
               value={form.legalName}
               onChange={(event) => setForm((current) => ({ ...current, legalName: event.target.value }))}
@@ -167,7 +170,7 @@ export default function PartnerProfilePage() {
           </label>
 
           <label className="field">
-            <span>Brand name</span>
+            <span>Название бренда</span>
             <input
               value={form.brandName}
               onChange={(event) => setForm((current) => ({ ...current, brandName: event.target.value }))}
@@ -176,7 +179,7 @@ export default function PartnerProfilePage() {
           </label>
 
           <label className="field field-wide">
-            <span>Description</span>
+            <span>Описание</span>
             <textarea
               value={form.description}
               onChange={(event) =>
@@ -187,7 +190,7 @@ export default function PartnerProfilePage() {
           </label>
 
           <label className="field">
-            <span>City</span>
+            <span>Город</span>
             <select
               value={form.cityId}
               onChange={(event) =>
@@ -199,7 +202,7 @@ export default function PartnerProfilePage() {
               }
               disabled={!session}
             >
-              <option value="">Select city</option>
+              <option value="">Выберите город</option>
               {cities.map((city) => (
                 <option key={city.id} value={city.id}>
                   {city.name}
@@ -209,13 +212,13 @@ export default function PartnerProfilePage() {
           </label>
 
           <label className="field">
-            <span>District</span>
+            <span>Район</span>
             <select
               value={form.districtId}
               onChange={(event) => setForm((current) => ({ ...current, districtId: event.target.value }))}
               disabled={!session || !form.cityId}
             >
-              <option value="">Select district</option>
+              <option value="">Выберите район</option>
               {districts.map((district) => (
                 <option key={district.id} value={district.id}>
                   {district.name}
@@ -240,7 +243,7 @@ export default function PartnerProfilePage() {
         </div>
 
         <button type="button" className="primary-button" onClick={submit} disabled={!session || loading}>
-          {loading ? 'Saving...' : profile ? 'Update partner profile' : 'Create partner profile'}
+          {loading ? 'Сохраняем...' : profile ? 'Обновить профиль партнера' : 'Создать профиль партнера'}
         </button>
       </Card>
     </DemoShell>

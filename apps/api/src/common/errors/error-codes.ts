@@ -5,6 +5,7 @@ export const ERROR_CODES = {
   notFound: 'NOT_FOUND',
   conflict: 'CONFLICT',
   internal: 'INTERNAL_ERROR',
+  databaseUnavailable: 'DATABASE_UNAVAILABLE',
   demoAuthDisabled: 'DEMO_AUTH_DISABLED',
   demoUserNotFound: 'DEMO_USER_NOT_FOUND',
   partnerProfileNotFound: 'PARTNER_PROFILE_NOT_FOUND',

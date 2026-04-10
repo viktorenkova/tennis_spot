@@ -2,18 +2,19 @@
 
 import Link from 'next/link';
 import { ReactNode } from 'react';
+import { formatRole } from '../lib/labels';
 import { hasRole, useDemoSession } from '../lib/session';
 
 const baseLinks = [
-  { href: '/', label: 'Home' },
-  { href: '/demo/auth', label: 'Demo auth' },
-  { href: '/me/player', label: 'My player profile' },
-  { href: '/me/partner', label: 'My partner profile' },
-  { href: '/me/partner/verification', label: 'Partner verification' },
+  { href: '/', label: 'Главная' },
+  { href: '/demo/auth', label: 'Демо-вход' },
+  { href: '/me/player', label: 'Мой профиль игрока' },
+  { href: '/me/partner', label: 'Мой профиль партнера' },
+  { href: '/me/partner/verification', label: 'Верификация партнера' },
 ];
 
 const adminLinks = [
-  { href: '/admin/verification-requests', label: 'Admin verification queue' },
+  { href: '/admin/verification-requests', label: 'Очередь заявок на верификацию' },
 ];
 
 export function DemoShell({
@@ -35,10 +36,10 @@ export function DemoShell({
       <aside className="side-panel">
         <div className="brand-block">
           <p className="eyebrow">tennis_spot</p>
-          <h1 className="brand-title">P1 Week 1 review slice</h1>
+          <h1 className="brand-title">P1 Week 1: обзорный MVP-срез</h1>
           <p className="brand-copy">
-            Auth, player profile, partner profile, verification submission and admin review in one
-            browser-checkable loop.
+            Авторизация, профиль игрока, профиль партнера, отправка верификации и модерация
+            администратором в одном демонстрационном цикле.
           </p>
         </div>
 
@@ -51,27 +52,27 @@ export function DemoShell({
         </nav>
 
         <section className="session-card">
-          <h2>Session</h2>
-          {!isLoaded ? <p className="muted">Loading session...</p> : null}
+          <h2>Сессия</h2>
+          {!isLoaded ? <p className="muted">Загрузка сессии...</p> : null}
           {isLoaded && !session ? (
-            <p className="muted">No active demo session. Use the demo auth page to sign in.</p>
+            <p className="muted">Активной демо-сессии нет. Войдите через страницу демо-входа.</p>
           ) : null}
           {session?.user ? (
             <>
               <p className="session-line">
-                <strong>Phone:</strong> {session.user.phone}
+                <strong>Телефон:</strong> {session.user.phone}
               </p>
               <p className="session-line">
-                <strong>Roles:</strong>{' '}
-                {session.user.roles.map(({ role }) => role.key).join(', ') || 'none'}
+                <strong>Роли:</strong>{' '}
+                {session.user.roles.map(({ role }) => formatRole(role.key)).join(', ') || 'нет'}
               </p>
               {session.userKey ? (
                 <p className="session-line">
-                  <strong>Demo key:</strong> {session.userKey}
+                  <strong>Демо-ключ:</strong> {session.userKey}
                 </p>
               ) : null}
               <button type="button" className="ghost-button" onClick={clearSession}>
-                Sign out
+                Выйти
               </button>
             </>
           ) : null}
@@ -80,7 +81,7 @@ export function DemoShell({
 
       <section className="content-panel">
         <header className="page-header">
-          <p className="eyebrow">Review flow</p>
+          <p className="eyebrow">Демо-поток</p>
           <h2>{title}</h2>
           <p className="page-copy">{description}</p>
         </header>

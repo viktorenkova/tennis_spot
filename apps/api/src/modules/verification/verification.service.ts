@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODES } from '../../common/errors/error-codes';
@@ -7,7 +7,7 @@ import { AddVerificationDocumentDto } from './dto/add-verification-document.dto'
 
 @Injectable()
 export class VerificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async addDocument(userId: string, dto: AddVerificationDocumentDto) {
     const partnerProfile = await this.prisma.partnerProfile.findUnique({
@@ -17,7 +17,7 @@ export class VerificationService {
     if (!partnerProfile) {
       throw new AppError(HttpStatus.NOT_FOUND, {
         code: ERROR_CODES.partnerProfileNotFound,
-        message: 'Partner profile not found.',
+        message: 'Профиль партнера не найден.',
       });
     }
 
@@ -56,21 +56,21 @@ export class VerificationService {
     if (!partnerProfile) {
       throw new AppError(HttpStatus.NOT_FOUND, {
         code: ERROR_CODES.partnerProfileNotFound,
-        message: 'Partner profile not found.',
+        message: 'Профиль партнера не найден.',
       });
     }
 
     if (partnerProfile.verificationStatus === 'pending_verification') {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestAlreadyPending,
-        message: 'Verification request is already pending review.',
+        message: 'Заявка на верификацию уже находится на рассмотрении.',
       });
     }
 
     if (partnerProfile.verificationStatus === 'verified') {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestInvalidTransition,
-        message: 'Verified partner profile cannot be resubmitted.',
+        message: 'Верифицированный профиль партнера нельзя отправить повторно.',
       });
     }
 
@@ -86,7 +86,7 @@ export class VerificationService {
     if (activeRequest) {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestAlreadyPending,
-        message: 'Verification request is already pending review.',
+        message: 'Заявка на верификацию уже находится на рассмотрении.',
       });
     }
 
@@ -144,7 +144,7 @@ export class VerificationService {
     if (!partnerProfile) {
       throw new AppError(HttpStatus.NOT_FOUND, {
         code: ERROR_CODES.partnerProfileNotFound,
-        message: 'Partner profile not found.',
+        message: 'Профиль партнера не найден.',
       });
     }
 

@@ -1,11 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreatePartnerProfileDto } from './dto/create-partner-profile.dto';
 import { UpdatePartnerProfileDto } from './dto/update-partner-profile.dto';
 
 @Injectable()
 export class PartnerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async createProfile(userId: string, dto: CreatePartnerProfileDto) {
     const existing = await this.prisma.partnerProfile.findUnique({
@@ -13,7 +13,7 @@ export class PartnerService {
     });
 
     if (existing) {
-      throw new ConflictException('Partner profile already exists.');
+      throw new ConflictException('Профиль партнера уже существует.');
     }
 
     const partnerRole = await this.prisma.role.findUnique({
@@ -21,7 +21,7 @@ export class PartnerService {
     });
 
     if (!partnerRole) {
-      throw new NotFoundException('Partner role is not seeded yet.');
+      throw new NotFoundException('Роль партнера еще не создана через seed.');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -33,7 +33,7 @@ export class PartnerService {
         });
 
         if (!partnerType) {
-          throw new NotFoundException(`Partner type ${key} is not seeded.`);
+          throw new NotFoundException(`Тип партнера ${key} еще не создан через seed.`);
         }
 
         typeRecords.push({ partnerTypeId: partnerType.id });
@@ -103,7 +103,7 @@ export class PartnerService {
     });
 
     if (!profile) {
-      throw new NotFoundException('Partner profile not found.');
+      throw new NotFoundException('Профиль партнера не найден.');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -120,7 +120,7 @@ export class PartnerService {
           });
 
           if (!partnerType) {
-            throw new NotFoundException(`Partner type ${key} is not seeded.`);
+            throw new NotFoundException(`Тип партнера ${key} еще не создан через seed.`);
           }
 
           await tx.partnerProfileType.create({
@@ -191,7 +191,7 @@ export class PartnerService {
     });
 
     if (!partner) {
-      throw new NotFoundException('Partner profile not found.');
+      throw new NotFoundException('Профиль партнера не найден.');
     }
 
     return partner;

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
@@ -10,7 +10,7 @@ import { PartnerService } from './partner.service';
 @ApiTags('Partner')
 @Controller()
 export class PartnerController {
-  constructor(private readonly partnerService: PartnerService) {}
+  constructor(@Inject(PartnerService) private readonly partnerService: PartnerService) {}
 
   @Post('partner/profile')
   @ApiBearerAuth()

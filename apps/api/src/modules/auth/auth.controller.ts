@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { DemoLoginDto } from './dto/demo-login.dto';
@@ -10,25 +10,25 @@ import { AccessTokenGuard } from './guards/access-token.guard';
 import { AuthService } from './auth.service';
 import { JwtPayload } from './types/jwt-payload.type';
 
-@ApiTags('Auth')
+@ApiTags('Авторизация')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(@Inject(AuthService) private readonly authService: AuthService) {}
 
   @Post('phone/request-code')
-  @ApiOkResponse({ description: 'Create a development phone verification challenge.' })
+  @ApiOkResponse({ description: 'Создать challenge для подтверждения телефона в dev-режиме.' })
   requestCode(@Body() dto: RequestPhoneCodeDto) {
     return this.authService.requestPhoneCode(dto);
   }
 
   @Post('phone/verify-code')
-  @ApiOkResponse({ description: 'Verify phone code and issue JWT tokens.' })
+  @ApiOkResponse({ description: 'Проверить код подтверждения телефона и выдать JWT-токены.' })
   verifyCode(@Body() dto: VerifyPhoneCodeDto) {
     return this.authService.verifyPhoneCode(dto);
   }
 
   @Post('demo/login')
-  @ApiOkResponse({ description: 'Development-only shortcut for seeded demo users.' })
+  @ApiOkResponse({ description: 'Dev-only быстрый вход для seeded demo-пользователей.' })
   demoLogin(@Body() dto: DemoLoginDto) {
     return this.authService.demoLogin(dto);
   }
