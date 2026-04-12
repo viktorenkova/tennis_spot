@@ -34,10 +34,50 @@ function formatValidationErrors(errors: ValidationError[]) {
 export function configureApp(app: INestApplication) {
   const configService = app.get(ConfigService);
   const apiPrefix = configService.get<string>('app.prefix', 'api/v1');
+  const allowedOrigins = Array.from(
+    new Set([
+      configService.get<string>('app.frontendUrl', 'http://localhost:3000'),
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ]),
+  );
+  const isAllowedDevOrigin = (origin: string) => {
+    try {
+      const url = new URL(origin);
+      const localHostnames = ['localhost', '127.0.0.1', '::1'];
+      const privateNetworkPattern = /^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/;
+
+      return (
+        (url.protocol === 'http:' || url.protocol === 'https:') &&
+        url.port === '3000' &&
+        (localHostnames.includes(url.hostname) || privateNetworkPattern.test(url.hostname))
+      );
+    } catch {
+      return false;
+    }
+  };
 
   app.setGlobalPrefix(apiPrefix);
+  const corsOrigin = (
+    origin: string | undefined,
+    callback: (error: Error | null, allow?: boolean) => void,
+  ) => {
+    const normalizedOrigin = typeof origin === 'string' ? origin : undefined;
+
+    if (
+      !normalizedOrigin ||
+      allowedOrigins.includes(normalizedOrigin) ||
+      isAllowedDevOrigin(normalizedOrigin)
+    ) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`Origin ${normalizedOrigin} is not allowed by CORS.`), false);
+  };
+
   app.enableCors({
-    origin: configService.get<string>('app.frontendUrl', 'http://localhost:3000'),
+    origin: corsOrigin,
     credentials: true,
   });
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());

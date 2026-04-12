@@ -43,19 +43,23 @@ const cities = [
 const demoUsers = {
   demoPlayer: {
     phone: '+79990000001',
+    email: 'demo-player@tennis-spot.local',
     roles: ['player'] as RoleKey[],
   },
   demoPartner: {
     phone: '+79990000002',
+    email: 'demo-partner@tennis-spot.local',
     roles: ['player'] as RoleKey[],
   },
   demoAdmin: {
     phone: '+79990000003',
+    email: 'demo-admin@tennis-spot.local',
     roles: ['admin'] as RoleKey[],
     adminDisplayName: 'Demo admin',
   },
   reviewPartner: {
     phone: '+79990000004',
+    email: 'review-partner@tennis-spot.local',
     roles: ['player', 'partner'] as RoleKey[],
   },
 } as const;
@@ -65,12 +69,25 @@ async function main() {
   const partnerTypeMap = await seedPartnerTypes();
   const cityMap = await seedCities();
 
-  const demoPlayer = await ensureUser(demoUsers.demoPlayer.phone, demoUsers.demoPlayer.roles);
-  const demoPartner = await ensureUser(demoUsers.demoPartner.phone, demoUsers.demoPartner.roles);
-  const demoAdmin = await ensureUser(demoUsers.demoAdmin.phone, demoUsers.demoAdmin.roles);
+  const demoPlayer = await ensureUser(
+    demoUsers.demoPlayer.phone,
+    demoUsers.demoPlayer.roles,
+    demoUsers.demoPlayer.email,
+  );
+  const demoPartner = await ensureUser(
+    demoUsers.demoPartner.phone,
+    demoUsers.demoPartner.roles,
+    demoUsers.demoPartner.email,
+  );
+  const demoAdmin = await ensureUser(
+    demoUsers.demoAdmin.phone,
+    demoUsers.demoAdmin.roles,
+    demoUsers.demoAdmin.email,
+  );
   const reviewPartnerUser = await ensureUser(
     demoUsers.reviewPartner.phone,
     demoUsers.reviewPartner.roles,
+    demoUsers.reviewPartner.email,
   );
 
   await prisma.adminProfile.upsert({
@@ -198,14 +215,16 @@ async function seedCities() {
   return map;
 }
 
-async function ensureUser(phone: string, roleKeys: RoleKey[]) {
+async function ensureUser(phone: string, roleKeys: RoleKey[], email?: string) {
   const user = await prisma.user.upsert({
     where: { phone },
     update: {
+      email,
       status: 'active',
     },
     create: {
       phone,
+      email,
       status: 'active',
     },
   });
@@ -257,6 +276,11 @@ async function seedReviewablePartner(params: {
       legalName: 'Review Club LLC',
       brandName: 'Review Club',
       description: 'Seeded partner profile for admin verification review.',
+      contactPhone: '+79990000004',
+      contactEmail: 'review@tennis-spot.local',
+      taxId: '7701234567',
+      legalAddress: 'Москва, Пресненская набережная, 12',
+      actualAddress: 'Москва, Пресненская набережная, 12',
       cityId: params.cityId,
       districtId: params.districtId,
       verificationStatus: 'pending_verification',
@@ -266,6 +290,11 @@ async function seedReviewablePartner(params: {
       legalName: 'Review Club LLC',
       brandName: 'Review Club',
       description: 'Seeded partner profile for admin verification review.',
+      contactPhone: '+79990000004',
+      contactEmail: 'review@tennis-spot.local',
+      taxId: '7701234567',
+      legalAddress: 'Москва, Пресненская набережная, 12',
+      actualAddress: 'Москва, Пресненская набережная, 12',
       cityId: params.cityId,
       districtId: params.districtId,
       verificationStatus: 'pending_verification',

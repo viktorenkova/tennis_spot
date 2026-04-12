@@ -5,16 +5,27 @@ import { ReactNode } from 'react';
 import { formatRole } from '../lib/labels';
 import { hasRole, useDemoSession } from '../lib/session';
 
-const baseLinks = [
-  { href: '/', label: 'Главная' },
-  { href: '/demo/auth', label: 'Демо-вход' },
-  { href: '/me/player', label: 'Мой профиль игрока' },
-  { href: '/me/partner', label: 'Мой профиль партнера' },
-  { href: '/me/partner/verification', label: 'Верификация партнера' },
-];
-
-const adminLinks = [
-  { href: '/admin/verification-requests', label: 'Очередь заявок на верификацию' },
+const navigation = [
+  {
+    title: 'Обзор',
+    items: [{ href: '/', label: 'Главная' }, { href: '/demo/auth', label: 'Вход в демо' }],
+  },
+  {
+    title: 'Сценарий игрока',
+    items: [{ href: '/me/player', label: 'Профиль игрока' }],
+  },
+  {
+    title: 'Сценарий партнера',
+    items: [
+      { href: '/me/partner', label: 'Профиль партнера' },
+      { href: '/me/partner/verification', label: 'Верификация партнера' },
+    ],
+  },
+  {
+    title: 'Сценарий администратора',
+    adminOnly: true,
+    items: [{ href: '/admin/verification-requests', label: 'Заявки на верификацию' }],
+  },
 ];
 
 export function DemoShell({
@@ -27,35 +38,45 @@ export function DemoShell({
   children: ReactNode;
 }) {
   const { session, clearSession, isLoaded } = useDemoSession();
-  const links = hasRole(session, 'admin') || hasRole(session, 'superadmin')
-    ? [...baseLinks, ...adminLinks]
-    : baseLinks;
+  const isAdmin = hasRole(session, 'admin') || hasRole(session, 'superadmin');
+  const sections = navigation.filter((section) => !section.adminOnly || isAdmin);
 
   return (
     <main className="app-shell">
       <aside className="side-panel">
         <div className="brand-block">
           <p className="eyebrow">tennis_spot</p>
-          <h1 className="brand-title">P1 Week 1: обзорный MVP-срез</h1>
+          <h1 className="brand-title">Демо-срез MVP</h1>
           <p className="brand-copy">
-            Авторизация, профиль игрока, профиль партнера, отправка верификации и модерация
-            администратором в одном демонстрационном цикле.
+            Рабочий сценарий для проверки профилей, верификации партнера и решения администратора.
           </p>
         </div>
 
         <nav className="side-nav">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className="nav-link">
-              {link.label}
-            </Link>
+          {sections.map((section) => (
+            <section key={section.title} className="nav-section">
+              <p className="nav-section-title">{section.title}</p>
+              <div className="nav-section-links">
+                {section.items.map((link) => (
+                  <Link key={link.href} href={link.href} className="nav-link">
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </section>
           ))}
         </nav>
 
         <section className="session-card">
-          <h2>Сессия</h2>
-          {!isLoaded ? <p className="muted">Загрузка сессии...</p> : null}
+          <div className="session-card-header">
+            <h2>Текущая сессия</h2>
+            {session?.userKey ? <span className="session-badge">{session.userKey}</span> : null}
+          </div>
+          {!isLoaded ? <p className="muted">Проверяем текущий вход...</p> : null}
           {isLoaded && !session ? (
-            <p className="muted">Активной демо-сессии нет. Войдите через страницу демо-входа.</p>
+            <p className="muted">
+              Аккаунт не выбран. Сначала откройте страницу входа в демо и авторизуйтесь.
+            </p>
           ) : null}
           {session?.user ? (
             <>
@@ -64,15 +85,10 @@ export function DemoShell({
               </p>
               <p className="session-line">
                 <strong>Роли:</strong>{' '}
-                {session.user.roles.map(({ role }) => formatRole(role.key)).join(', ') || 'нет'}
+                {session.user.roles.map(({ role }) => formatRole(role.key)).join(', ') || 'Не указаны'}
               </p>
-              {session.userKey ? (
-                <p className="session-line">
-                  <strong>Демо-ключ:</strong> {session.userKey}
-                </p>
-              ) : null}
               <button type="button" className="ghost-button" onClick={clearSession}>
-                Выйти
+                Выйти из аккаунта
               </button>
             </>
           ) : null}
@@ -81,7 +97,7 @@ export function DemoShell({
 
       <section className="content-panel">
         <header className="page-header">
-          <p className="eyebrow">Демо-поток</p>
+          <p className="eyebrow">Рабочий поток</p>
           <h2>{title}</h2>
           <p className="page-copy">{description}</p>
         </header>

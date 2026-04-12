@@ -17,6 +17,7 @@
     "format": "prettier --write .",
     "db:generate": "npm run prisma:generate --workspace @tennis-spot/api",
     "db:migrate": "npm run prisma:migrate --workspace @tennis-spot/api",
+    "db:deploy": "npm run prisma:deploy --workspace @tennis-spot/api",
     "db:seed": "npm run prisma:seed --workspace @tennis-spot/api",
     "db:seed-admin": "npm run prisma:seed-admin --workspace @tennis-spot/api"
   },

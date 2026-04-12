@@ -13,11 +13,45 @@ export type ApiEnvelope<T> = {
   } | null;
 };
 
+function resolveApiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+
+  if (configured) {
+    return configured.replace(/\/+$/, '');
+  }
+
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:4000/api/v1`;
+  }
+
+  return 'http://localhost:4000/api/v1';
+}
+
+function getFriendlyNetworkMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return 'Не удалось выполнить запрос к серверу.';
+  }
+
+  const message = error.message.toLowerCase();
+
+  if (
+    message.includes('failed to fetch') ||
+    message.includes('fetch failed') ||
+    message.includes('networkerror') ||
+    message.includes('load failed') ||
+    message.includes('econnrefused')
+  ) {
+    return 'Не удалось подключиться к серверу. Проверьте, что backend запущен.';
+  }
+
+  return 'Не удалось выполнить запрос к серверу.';
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit & { session?: DemoSession | null } = {},
 ): Promise<ApiEnvelope<T>> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+  const baseUrl = resolveApiBaseUrl();
   const headers = new Headers(options.headers);
 
   if (!headers.has('Content-Type') && options.body) {
@@ -35,8 +69,38 @@ export async function apiRequest<T>(
       cache: 'no-store',
     });
 
-    const data = (await response.json()) as ApiEnvelope<T>;
-    return data;
+    const rawText = await response.text();
+    let payload: ApiEnvelope<T> | null = null;
+
+    if (rawText) {
+      try {
+        payload = JSON.parse(rawText) as ApiEnvelope<T>;
+      } catch {
+        return {
+          success: false,
+          data: null,
+          meta: {},
+          error: {
+            code: 'INVALID_RESPONSE',
+            message: 'Сервер вернул непонятный ответ. Обновите страницу и попробуйте снова.',
+          },
+        };
+      }
+    }
+
+    if (payload) {
+      return payload;
+    }
+
+    return {
+      success: false,
+      data: null,
+      meta: {},
+      error: {
+        code: 'INVALID_RESPONSE',
+        message: 'Сервер вернул пустой или непонятный ответ.',
+      },
+    };
   } catch (error) {
     return {
       success: false,
@@ -44,7 +108,7 @@ export async function apiRequest<T>(
       meta: {},
       error: {
         code: 'NETWORK_ERROR',
-        message: error instanceof Error ? error.message : 'Не удалось выполнить сетевой запрос.',
+        message: getFriendlyNetworkMessage(error),
       },
     };
   }

@@ -57,6 +57,7 @@ enum PartnerTypeKey {
 model User {
   id             String          @id @default(uuid()) @db.Uuid
   phone          String          @unique
+  email          String?         @unique
   status         UserStatus      @default(pending)
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
@@ -265,6 +266,11 @@ model PartnerProfile {
   legalName            String                    @map("legal_name")
   brandName            String?                   @map("brand_name")
   description          String?
+  contactPhone         String?                   @map("contact_phone")
+  contactEmail         String?                   @map("contact_email")
+  taxId                String?                   @map("tax_id")
+  legalAddress         String?                   @map("legal_address")
+  actualAddress        String?                   @map("actual_address")
   verificationStatus   PartnerVerificationStatus @default(draft) @map("verification_status")
   cityId               String?                   @map("city_id") @db.Uuid
   districtId           String?                   @map("district_id") @db.Uuid

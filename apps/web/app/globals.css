@@ -1,17 +1,21 @@
 :root {
   color-scheme: light;
-  --bg: #f5efe3;
-  --panel: rgba(255, 250, 242, 0.92);
-  --panel-strong: #fff9f0;
+  --bg: #f6f1e8;
+  --panel: rgba(255, 251, 245, 0.94);
+  --panel-strong: #fffdf9;
   --text: #1d2923;
   --muted: #667066;
-  --line: rgba(29, 41, 35, 0.12);
-  --accent: #b76034;
-  --accent-soft: #f0d4c2;
+  --line: rgba(29, 41, 35, 0.11);
+  --accent: #ae5f39;
+  --accent-soft: #f2dacb;
+  --accent-strong: #7f4f31;
   --success: #2f7d55;
   --success-soft: #dcefe5;
+  --warning: #9a6b1d;
+  --warning-soft: #f4e7c9;
   --danger: #9f4130;
   --danger-soft: #f2ddd7;
+  --neutral-soft: #ece8df;
   --shadow: 0 22px 60px rgba(53, 43, 26, 0.08);
 }
 
@@ -39,11 +43,37 @@ a {
   text-decoration: none;
 }
 
+a:hover {
+  color: var(--accent-strong);
+}
+
 button,
 input,
 select,
 textarea {
   font: inherit;
+}
+
+button,
+input,
+select,
+textarea,
+a {
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(174, 95, 57, 0.16);
 }
 
 .app-shell {
@@ -76,7 +106,9 @@ textarea {
   position: sticky;
   top: 24px;
   height: fit-content;
-  background: linear-gradient(180deg, rgba(255, 249, 240, 0.95), rgba(247, 236, 220, 0.92));
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.97), rgba(247, 237, 223, 0.93)),
+    radial-gradient(circle at top left, rgba(47, 125, 85, 0.08), transparent 40%);
 }
 
 .brand-title,
@@ -118,6 +150,29 @@ textarea {
   gap: 12px;
 }
 
+.nav-section {
+  display: grid;
+  gap: 10px;
+}
+
+.nav-section + .nav-section {
+  padding-top: 14px;
+  border-top: 1px solid rgba(29, 41, 35, 0.08);
+}
+
+.nav-section-title {
+  margin: 0;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.nav-section-links {
+  display: grid;
+  gap: 8px;
+}
+
 .nav-link,
 .feature-link,
 .list-row {
@@ -131,7 +186,8 @@ textarea {
 .nav-link {
   display: block;
   border-radius: 14px;
-  border: 1px solid transparent;
+  border: 1px solid rgba(29, 41, 35, 0.06);
+  background: rgba(255, 255, 255, 0.48);
 }
 
 .nav-link:hover,
@@ -146,6 +202,30 @@ textarea {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--line);
+}
+
+.session-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.session-card-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.session-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(29, 41, 35, 0.08);
+  background: rgba(255, 255, 255, 0.74);
+  font-size: 0.82rem;
+  color: var(--accent-strong);
 }
 
 .content-panel {
@@ -189,6 +269,18 @@ textarea {
   background: linear-gradient(180deg, rgba(240, 212, 194, 0.9), rgba(255, 250, 242, 0.95));
 }
 
+.card-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.card-header-row h3 {
+  margin-bottom: 0;
+}
+
 .feature-link {
   display: grid;
   gap: 8px;
@@ -196,6 +288,18 @@ textarea {
 
 .feature-title {
   font-weight: 700;
+}
+
+.inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.inline-link::after {
+  content: '→';
 }
 
 .notice {
@@ -214,6 +318,43 @@ textarea {
 
 .notice-error {
   background: var(--danger-soft);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-badge-neutral {
+  color: var(--text);
+  background: var(--neutral-soft);
+  border-color: rgba(29, 41, 35, 0.08);
+}
+
+.status-badge-success {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: rgba(47, 125, 85, 0.18);
+}
+
+.status-badge-warning {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-color: rgba(154, 107, 29, 0.18);
+}
+
+.status-badge-danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: rgba(159, 65, 48, 0.18);
 }
 
 .field {
@@ -236,6 +377,19 @@ textarea {
   color: var(--text);
 }
 
+.field input:hover,
+.field select:hover,
+.field textarea:hover {
+  border-color: rgba(174, 95, 57, 0.22);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: rgba(174, 95, 57, 0.38);
+  box-shadow: 0 0 0 3px rgba(174, 95, 57, 0.08);
+}
+
 .field textarea {
   min-height: 140px;
   resize: vertical;
@@ -252,10 +406,79 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.form-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.helper-copy {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.help-trigger {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(29, 41, 35, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.info-list {
+  display: grid;
+  gap: 10px;
+}
+
+.info-list p {
+  margin: 0;
+}
+
+.compact-list {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
 .checkbox-line {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.choice-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.choice-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(29, 41, 35, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.choice-chip:hover {
+  border-color: rgba(174, 95, 57, 0.22);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.choice-chip input {
+  margin: 0;
 }
 
 .primary-button,
@@ -308,6 +531,23 @@ textarea {
   border-color: var(--line);
 }
 
+.action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.action-row > div {
+  display: grid;
+  gap: 8px;
+}
+
+.action-row h3,
+.action-row p {
+  margin: 0;
+}
+
 .bullet-list,
 .ordered-list {
   margin: 0;
@@ -321,6 +561,15 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.list-row-detailed {
+  align-items: flex-start;
+}
+
+.list-row-detailed > div {
+  display: grid;
+  gap: 6px;
 }
 
 @media (max-width: 1024px) {
@@ -350,5 +599,12 @@ textarea {
   .split-grid,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .action-row,
+  .card-header-row,
+  .session-card-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

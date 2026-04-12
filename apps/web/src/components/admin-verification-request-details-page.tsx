@@ -9,10 +9,12 @@ import {
   formatPartnerType,
   formatPartnerVerificationStatus,
   formatVerificationRequestStatus,
+  getPartnerVerificationStatusTone,
+  getVerificationRequestStatusTone,
 } from '../lib/labels';
 import { hasRole, useDemoSession } from '../lib/session';
 import { DemoShell } from './demo-shell';
-import { Card, Notice } from './ui';
+import { Card, Notice, StatusBadge } from './ui';
 
 type VerificationDetails = {
   id: string;
@@ -54,12 +56,6 @@ type VerificationDetails = {
     } | null;
   }>;
 };
-
-const actionLabels = {
-  approve: 'Одобрить',
-  reject: 'Отклонить',
-  needsCorrection: 'Вернуть на доработку',
-} as const;
 
 export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: string }) {
   const { session, isLoaded } = useDemoSession();
@@ -104,9 +100,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
     setMessage(null);
     setError(null);
 
-    const body =
-      action === 'approve' ? { comment: comment || undefined } : { comment };
-
+    const body = action === 'approve' ? { comment: comment || undefined } : { comment };
     const endpoint =
       action === 'needsCorrection'
         ? `/admin/verification-requests/${requestId}/needs-correction`
@@ -124,7 +118,14 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
       return;
     }
 
-    setMessage(`Действие "${actionLabels[action]}" выполнено.`);
+    const actionMessage =
+      action === 'approve'
+        ? 'Заявка подтверждена.'
+        : action === 'reject'
+          ? 'Заявка отклонена.'
+          : 'По заявке запрошены уточнения.';
+
+    setMessage(actionMessage);
     setLoading(false);
     await load();
   };
@@ -132,14 +133,14 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
   return (
     <DemoShell
       title="Детали заявки на верификацию"
-      description="Экран модерации для администратора со статусом, документами, аудит-логом и управляющими действиями."
+      description="Проверьте статус, документы и профиль партнера, затем выберите одно из решений по заявке."
     >
-      {!isLoaded ? <Notice>Загрузка сессии...</Notice> : null}
+      {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Перед открытием деталей заявки войдите как `demo-admin`.</Notice>
+        <Notice kind="error">Перед открытием заявки войдите как demo-admin.</Notice>
       ) : null}
       {session && !canUseAdminFlow ? (
-        <Notice kind="error">Эта страница доступна только ролям admin и superadmin.</Notice>
+        <Notice kind="error">Эта страница доступна только администратору.</Notice>
       ) : null}
       {message ? <Notice kind="success">{message}</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
@@ -148,24 +149,34 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
         <>
           <div className="split-grid">
             <Card accent>
-              <h3>Сводка по заявке</h3>
+              <div className="card-header-row">
+                <h3>Состояние заявки</h3>
+                <StatusBadge tone={getVerificationRequestStatusTone(details.status)}>
+                  {formatVerificationRequestStatus(details.status)}
+                </StatusBadge>
+              </div>
               <p className="session-line">
-                <strong>Статус заявки:</strong> {formatVerificationRequestStatus(details.status)}
+                <strong>Отправлена:</strong>{' '}
+                {formatDateTime(details.submittedAt, 'Дата не указана')}
               </p>
               <p className="session-line">
-                <strong>Статус партнера:</strong>{' '}
-                {formatPartnerVerificationStatus(details.partnerProfile.verificationStatus)}
+                <strong>Последнее решение:</strong>{' '}
+                {formatDateTime(details.reviewedAt, 'Решение еще не принято')}
               </p>
               <p className="session-line">
-                <strong>Отправлена:</strong> {formatDateTime(details.submittedAt, 'Еще не отправлена')}
-              </p>
-              <p className="session-line">
-                <strong>Рассмотрена:</strong> {formatDateTime(details.reviewedAt, 'Еще не рассмотрена')}
+                <strong>Комментарий по заявке:</strong> {details.comment ?? 'Комментария пока нет'}
               </p>
             </Card>
 
             <Card>
-              <h3>Профиль партнера</h3>
+              <div className="card-header-row">
+                <h3>Состояние партнера</h3>
+                <StatusBadge
+                  tone={getPartnerVerificationStatusTone(details.partnerProfile.verificationStatus)}
+                >
+                  {formatPartnerVerificationStatus(details.partnerProfile.verificationStatus)}
+                </StatusBadge>
+              </div>
               <p className="session-line">
                 <strong>Название:</strong>{' '}
                 {details.partnerProfile.brandName ?? details.partnerProfile.legalName}
@@ -174,20 +185,26 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
                 <strong>Телефон:</strong> {details.partnerProfile.ownerUser.phone}
               </p>
               <p className="session-line">
-                <strong>Типы:</strong>{' '}
+                <strong>Формат работы:</strong>{' '}
                 {details.partnerProfile.profileTypes
                   .map(({ partnerType }) => formatPartnerType(partnerType.key))
                   .join(', ')}
               </p>
-              <p className="muted">{details.partnerProfile.description ?? 'Описание не заполнено'}</p>
+              <p className="muted">
+                {details.partnerProfile.description ?? 'Описание клуба или организации не заполнено.'}
+              </p>
             </Card>
           </div>
 
           <Card>
-            <h3>Решение по заявке</h3>
+            <h3>Решение администратора</h3>
             <label className="field">
-              <span>Комментарий модератора</span>
-              <textarea value={comment} onChange={(event) => setComment(event.target.value)} />
+              <span>Комментарий для партнера</span>
+              <textarea
+                value={comment}
+                placeholder="Например: документы читаются хорошо, профиль можно подтверждать."
+                onChange={(event) => setComment(event.target.value)}
+              />
             </label>
 
             <div className="button-row">
@@ -197,7 +214,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
                 onClick={() => runAction('approve')}
                 disabled={loading}
               >
-                Одобрить
+                Подтвердить
               </button>
               <button
                 type="button"
@@ -205,7 +222,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
                 onClick={() => runAction('needsCorrection')}
                 disabled={loading}
               >
-                Вернуть на доработку
+                Запросить уточнения
               </button>
               <button
                 type="button"
@@ -218,29 +235,39 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
             </div>
           </Card>
 
-          <Card>
-            <h3>Документы</h3>
-            <ul className="bullet-list">
-              {details.documents.map((document) => (
-                <li key={document.id}>
-                  {formatDocumentType(document.documentType)}: {document.file.originalName} ({document.file.storageKey})
-                </li>
-              ))}
-            </ul>
-          </Card>
+          <div className="split-grid">
+            <Card>
+              <h3>Прикрепленные документы</h3>
+              {!details.documents.length ? (
+                <p className="muted">Документы к заявке пока не прикреплены.</p>
+              ) : (
+                <ul className="bullet-list">
+                  {details.documents.map((document) => (
+                    <li key={document.id}>
+                      {formatDocumentType(document.documentType)}: {document.file.originalName}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
 
-          <Card>
-            <h3>Аудит-лог</h3>
-            <ul className="bullet-list">
-              {details.auditLogs.map((log) => (
-                <li key={log.id}>
-                  {formatAuditAction(log.action)} · {log.actorUser?.phone ?? 'система'} ·{' '}
-                  {formatDateTime(log.createdAt)}
-                  {log.comment ? ` - ${log.comment}` : ''}
-                </li>
-              ))}
-            </ul>
-          </Card>
+            <Card>
+              <h3>История действий</h3>
+              {!details.auditLogs.length ? (
+                <p className="muted">По заявке пока нет записей в журнале.</p>
+              ) : (
+                <ul className="bullet-list">
+                  {details.auditLogs.map((log) => (
+                    <li key={log.id}>
+                      {formatAuditAction(log.action)} · {log.actorUser?.phone ?? 'Система'} ·{' '}
+                      {formatDateTime(log.createdAt)}
+                      {log.comment ? ` - ${log.comment}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
         </>
       ) : null}
     </DemoShell>

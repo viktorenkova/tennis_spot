@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 const adminPhone = '+79990000003';
+const adminEmail = 'demo-admin@tennis-spot.local';
 
 async function main() {
   const adminRole = await prisma.role.findUniqueOrThrow({
@@ -11,10 +12,12 @@ async function main() {
   const adminUser = await prisma.user.upsert({
     where: { phone: adminPhone },
     update: {
+      email: adminEmail,
       status: 'active',
     },
     create: {
       phone: adminPhone,
+      email: adminEmail,
       status: 'active',
     },
   });

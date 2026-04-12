@@ -9,6 +9,7 @@ export type SessionUserRole = 'player' | 'partner' | 'admin' | 'superadmin';
 export type SessionUser = {
   id: string;
   phone: string;
+  email?: string | null;
   status: string;
   roles: Array<{
     role: {

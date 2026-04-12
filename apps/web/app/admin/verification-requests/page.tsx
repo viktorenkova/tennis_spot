@@ -3,10 +3,15 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../../src/lib/api';
-import { formatPartnerVerificationStatus, formatVerificationRequestStatus } from '../../../src/lib/labels';
+import {
+  formatDateTime,
+  formatPartnerVerificationStatus,
+  formatVerificationRequestStatus,
+  getVerificationRequestStatusTone,
+} from '../../../src/lib/labels';
 import { hasRole, useDemoSession } from '../../../src/lib/session';
 import { DemoShell } from '../../../src/components/demo-shell';
-import { Card, Notice } from '../../../src/components/ui';
+import { Card, Notice, StatusBadge } from '../../../src/components/ui';
 
 type VerificationRequestListItem = {
   id: string;
@@ -47,7 +52,7 @@ export default function AdminVerificationRequestsPage() {
     );
 
     if (!response.success || !response.data) {
-      setError(response.error?.message ?? 'Не удалось загрузить очередь заявок на верификацию.');
+      setError(response.error?.message ?? 'Не удалось загрузить список заявок.');
       setLoading(false);
       return;
     }
@@ -64,51 +69,72 @@ export default function AdminVerificationRequestsPage() {
 
   return (
     <DemoShell
-      title="Очередь заявок на верификацию"
-      description="Список заявок для администратора с фильтрацией и переходом в карточку модерации."
+      title="Заявки на верификацию"
+      description="Откройте заявку, проверьте данные партнера и перейдите к решению по модерации."
     >
-      {!isLoaded ? <Notice>Загрузка сессии...</Notice> : null}
+      {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Перед открытием очереди войдите как `demo-admin`.</Notice>
+        <Notice kind="error">Перед открытием очереди войдите как demo-admin.</Notice>
       ) : null}
       {session && !canUseAdminFlow ? (
-        <Notice kind="error">Эта страница доступна только ролям admin и superadmin.</Notice>
+        <Notice kind="error">Эта страница доступна только администратору.</Notice>
       ) : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
 
-      <Card>
-        <h3>Фильтры очереди</h3>
-        <label className="field">
-          <span>Статус</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="">Все статусы</option>
-            <option value="submitted">Отправлена</option>
-            <option value="in_review">На рассмотрении</option>
-            <option value="approved">Одобрена</option>
-            <option value="rejected">Отклонена</option>
-            <option value="needs_correction">Требует исправлений</option>
-          </select>
-        </label>
-      </Card>
+      <div className="split-grid">
+        <Card>
+          <h3>Как работать с очередью</h3>
+          <ol className="ordered-list">
+            <li>Выберите нужный статус или оставьте список без фильтра.</li>
+            <li>Откройте карточку партнера.</li>
+            <li>Проверьте документы и комментарии.</li>
+            <li>Примите решение: подтвердить, отклонить или запросить уточнения.</li>
+          </ol>
+        </Card>
+
+        <Card>
+          <h3>Фильтр</h3>
+          <label className="field">
+            <span>Показывать заявки со статусом</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="">Все заявки</option>
+              <option value="submitted">На проверке</option>
+              <option value="in_review">На рассмотрении</option>
+              <option value="approved">Подтвержденные</option>
+              <option value="rejected">Отклоненные</option>
+              <option value="needs_correction">Требуют уточнений</option>
+            </select>
+          </label>
+        </Card>
+      </div>
 
       <Card>
-        <h3>Заявки на верификацию</h3>
-        {loading ? <p className="muted">Загрузка очереди...</p> : null}
+        <div className="card-header-row">
+          <h3>Очередь модерации</h3>
+          <StatusBadge tone="neutral">{items.length}</StatusBadge>
+        </div>
+
+        {loading ? <p className="muted">Загружаем заявки...</p> : null}
         {!loading && items.length === 0 ? (
-          <p className="muted">Для выбранного фильтра заявки не найдены.</p>
+          <p className="muted">По выбранному фильтру заявок пока нет.</p>
         ) : null}
 
         <div className="list-stack">
           {items.map((item) => (
-            <Link key={item.id} href={`/admin/verification-requests/${item.id}`} className="list-row">
-              <span>
+            <Link key={item.id} href={`/admin/verification-requests/${item.id}`} className="list-row list-row-detailed">
+              <div>
                 <strong>{item.partnerProfile.brandName ?? item.partnerProfile.legalName}</strong>
-                <br />
-                <span className="muted">
-                  {item.partnerProfile.ownerUser.phone} · {formatPartnerVerificationStatus(item.partnerProfile.verificationStatus)}
-                </span>
-              </span>
-              <span>{formatVerificationRequestStatus(item.status)}</span>
+                <p className="helper-copy">
+                  {item.partnerProfile.ownerUser.phone} · профиль:{' '}
+                  {formatPartnerVerificationStatus(item.partnerProfile.verificationStatus)}
+                </p>
+                <p className="helper-copy">
+                  Отправлена: {formatDateTime(item.submittedAt, 'Дата не указана')}
+                </p>
+              </div>
+              <StatusBadge tone={getVerificationRequestStatusTone(item.status)}>
+                {formatVerificationRequestStatus(item.status)}
+              </StatusBadge>
             </Link>
           ))}
         </div>

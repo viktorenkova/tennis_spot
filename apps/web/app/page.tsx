@@ -1,76 +1,120 @@
 import Link from 'next/link';
 import { DemoShell } from '../src/components/demo-shell';
-import { Card, Notice } from '../src/components/ui';
+import { Card, Notice, StatusBadge } from '../src/components/ui';
 
-const demoFlows = [
+const roleCards = [
   {
-    href: '/demo/auth',
-    title: 'Демо-вход',
-    copy: 'Войдите как demo-player, demo-partner, demo-admin или review-partner.',
+    title: 'Игрок',
+    copy: 'Заполняет анкету, указывает уровень игры и позже сможет искать корты и соперников.',
+    href: '/me/player',
   },
+  {
+    title: 'Партнер',
+    copy: 'Заполняет профиль клуба или организации и отправляет заявку на верификацию.',
+    href: '/me/partner',
+  },
+  {
+    title: 'Администратор',
+    copy: 'Просматривает заявку, изучает документы и принимает решение по верификации.',
+    href: '/admin/verification-requests',
+  },
+];
+
+const steps = [
+  'Войдите как игрок, партнер или администратор.',
+  'Заполните профиль игрока или партнера.',
+  'Отправьте заявку на верификацию партнера.',
+  'Откройте аккаунт администратора.',
+  'Проверьте заявку и измените ее статус.',
+];
+
+const flowLinks = [
+  { href: '/demo/auth', title: 'Вход в демо', copy: 'Выберите один из подготовленных аккаунтов.' },
   {
     href: '/me/player',
     title: 'Профиль игрока',
-    copy: 'Создайте или обновите профиль игрока через живой REST API.',
+    copy: 'Заполните анкету игрока и укажите свой уровень игры.',
   },
   {
     href: '/me/partner',
     title: 'Профиль партнера',
-    copy: 'Создайте профиль партнера, который затем пойдет на верификацию.',
+    copy: 'Укажите основные сведения о клубе или организации.',
   },
   {
     href: '/me/partner/verification',
-    title: 'Подача на верификацию',
-    copy: 'Отправьте заявку на верификацию партнера и проверьте текущий статус.',
+    title: 'Верификация',
+    copy: 'Добавьте документ и отправьте заявку на проверку.',
   },
   {
     href: '/admin/verification-requests',
     title: 'Очередь модерации',
-    copy: 'Проверьте seed-заявки или те, что были созданы в текущей демо-сессии.',
+    copy: 'Откройте заявку и примите решение как администратор.',
   },
 ];
 
 export default function HomePage() {
   return (
     <DemoShell
-      title="Обзорный MVP-срез"
-      description="Эта итерация закрывает один реальный бизнес-цикл целиком: авторизация, профили, отправка верификации и модерация администратором."
+      title="Первый рабочий сценарий MVP"
+      description="Это обзорный демо-срез продукта: вход, анкеты, заявка на верификацию партнера и решение администратора."
     >
       <div className="split-grid">
         <Card accent>
-          <h3>Что уже работает</h3>
-          <ul className="bullet-list">
-            <li>Удобный демо-вход поверх основной JWT-архитектуры авторизации.</li>
-            <li>CRUD для профилей игрока и партнера через PostgreSQL/Prisma.</li>
-            <li>Подача партнерской верификации и действия модерации только для администратора.</li>
-            <li>Реальные записи в аудит-логе для подачи заявки и решений модератора.</li>
-          </ul>
+          <h3>Что можно проверить прямо сейчас</h3>
+          <div className="info-list">
+            <p>
+              <StatusBadge tone="success">Работает</StatusBadge> Авторизация через demo-аккаунты
+            </p>
+            <p>
+              <StatusBadge tone="success">Работает</StatusBadge> Профиль игрока и партнера
+            </p>
+            <p>
+              <StatusBadge tone="success">Работает</StatusBadge> Заявка на верификацию
+            </p>
+            <p>
+              <StatusBadge tone="success">Работает</StatusBadge> Решение администратора и аудит
+            </p>
+          </div>
         </Card>
 
         <Card>
-          <h3>Как быстро пройти сценарий</h3>
+          <h3>Как пройти демо</h3>
           <ol className="ordered-list">
-            <li>Откройте страницу демо-входа и войдите как `demo-partner`.</li>
-            <li>Создайте или обновите профиль партнера и отправьте заявку на верификацию.</li>
-            <li>Переключитесь на `demo-admin` и откройте очередь модерации.</li>
-            <li>Откройте одну заявку и измените ее статус.</li>
+            {steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
           </ol>
         </Card>
       </div>
 
-      <Notice title="Быстрый демонстрационный путь">
-        В seed уже создается `review-partner` с отправленной заявкой на верификацию, поэтому
-        админский сценарий можно смотреть сразу после локального запуска.
+      <Notice title="Быстрый способ проверить модерацию">
+        В seed уже есть аккаунт <strong>review-partner</strong> с отправленной заявкой. Можно
+        сразу войти как <strong>demo-admin</strong> и открыть очередь заявок.
       </Notice>
 
       <div className="demo-grid">
-        {demoFlows.map((flow) => (
-          <Link key={flow.href} href={flow.href} className="feature-link">
-            <span className="feature-title">{flow.title}</span>
-            <span className="feature-copy">{flow.copy}</span>
-          </Link>
+        {roleCards.map((roleCard) => (
+          <Card key={roleCard.title}>
+            <h3>{roleCard.title}</h3>
+            <p className="muted">{roleCard.copy}</p>
+            <Link href={roleCard.href} className="inline-link">
+              Открыть сценарий
+            </Link>
+          </Card>
         ))}
       </div>
+
+      <Card>
+        <h3>Быстрые переходы</h3>
+        <div className="demo-grid">
+          {flowLinks.map((flow) => (
+            <Link key={flow.href} href={flow.href} className="feature-link">
+              <span className="feature-title">{flow.title}</span>
+              <span className="feature-copy">{flow.copy}</span>
+            </Link>
+          ))}
+        </div>
+      </Card>
     </DemoShell>
   );
 }

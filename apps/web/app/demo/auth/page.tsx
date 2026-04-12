@@ -4,28 +4,28 @@ import { useState } from 'react';
 import { apiRequest } from '../../../src/lib/api';
 import { DemoSession, DemoUserKey, useDemoSession } from '../../../src/lib/session';
 import { DemoShell } from '../../../src/components/demo-shell';
-import { Card, Notice } from '../../../src/components/ui';
+import { Card, Notice, StatusBadge } from '../../../src/components/ui';
 
-const demoUsers: Array<{ key: DemoUserKey; label: string; copy: string }> = [
+const demoUsers: Array<{ key: DemoUserKey; title: string; copy: string }> = [
   {
     key: 'demo-player',
-    label: 'demo-player',
-    copy: 'Чистый аккаунт игрока для создания профиля с нуля.',
+    title: 'Игрок',
+    copy: 'Подходит для проверки анкеты игрока и заполнения данных с нуля.',
   },
   {
     key: 'demo-partner',
-    label: 'demo-partner',
-    copy: 'Чистый аккаунт партнера для создания профиля и отправки верификации.',
+    title: 'Партнер',
+    copy: 'Подходит для заполнения профиля партнера и отправки заявки на верификацию.',
   },
   {
     key: 'demo-admin',
-    label: 'demo-admin',
-    copy: 'Аккаунт администратора для модерации заявок на верификацию.',
+    title: 'Администратор',
+    copy: 'Подходит для проверки очереди заявок и принятия решения по верификации.',
   },
   {
     key: 'review-partner',
-    label: 'review-partner',
-    copy: 'Партнер из seed с уже готовой к проверке заявкой.',
+    title: 'Партнер с готовой заявкой',
+    copy: 'В аккаунте уже есть заполненные данные и отправленная заявка на проверку.',
   },
 ];
 
@@ -54,7 +54,7 @@ export default function DemoAuthPage() {
     });
 
     if (!loginResponse.success || !loginResponse.data) {
-      setError(loginResponse.error?.message ?? 'Не удалось выполнить демо-вход.');
+      setError(loginResponse.error?.message ?? 'Не удалось войти в демо-аккаунт.');
       setLoadingKey(null);
       return;
     }
@@ -71,7 +71,9 @@ export default function DemoAuthPage() {
     });
 
     if (!meResponse.success || !meResponse.data) {
-      setError(meResponse.error?.message ?? 'Вход выполнен, но не удалось загрузить текущего пользователя.');
+      setError(
+        meResponse.error?.message ?? 'Вход выполнен, но не удалось загрузить данные аккаунта.',
+      );
       setLoadingKey(null);
       return;
     }
@@ -80,30 +82,38 @@ export default function DemoAuthPage() {
       ...nextSession,
       user: meResponse.data as DemoSession['user'],
     });
-    setMessage(`Вход выполнен как ${userKey}.`);
+    setMessage('Аккаунт выбран. Можно переходить к следующему шагу.');
     setLoadingKey(null);
   };
 
   return (
     <DemoShell
-      title="Демо-вход"
-      description="Dev-only вход для seed-аккаунтов. Он не заменяет основную phone-first авторизацию, а лишь ускоряет локальный обзор сценариев."
+      title="Вход в демо"
+      description="Выберите один из подготовленных аккаунтов, чтобы быстро пройти нужный сценарий: игрок, партнер или администратор."
     >
+      <Notice title="Как пользоваться этой страницей">
+        Сначала выберите аккаунт, затем переходите в соответствующий раздел через левую навигацию.
+      </Notice>
+
       {message ? <Notice kind="success">{message}</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
 
       <div className="demo-grid">
         {demoUsers.map((demoUser) => (
           <Card key={demoUser.key} accent={session?.userKey === demoUser.key}>
-            <h3>{demoUser.label}</h3>
+            <div className="card-header-row">
+              <h3>{demoUser.title}</h3>
+              {session?.userKey === demoUser.key ? <StatusBadge tone="success">Выбран</StatusBadge> : null}
+            </div>
             <p className="muted">{demoUser.copy}</p>
+            <p className="helper-copy">Аккаунт: {demoUser.key}</p>
             <button
               type="button"
               className="primary-button"
               onClick={() => handleLogin(demoUser.key)}
               disabled={loadingKey === demoUser.key}
             >
-              {loadingKey === demoUser.key ? 'Выполняется вход...' : `Войти как ${demoUser.label}`}
+              {loadingKey === demoUser.key ? 'Выполняем вход...' : 'Войти в этот аккаунт'}
             </button>
           </Card>
         ))}
