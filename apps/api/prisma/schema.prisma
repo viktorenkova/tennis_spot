@@ -39,6 +39,24 @@ enum VerificationRequestStatus {
   needs_correction
 }
 
+enum BookingRequestStatus {
+  draft
+  pending
+  confirmed
+  rejected
+  cancelled_by_player
+  cancelled_by_partner
+  expired
+  completed
+}
+
+enum ScheduleExceptionType {
+  closed
+  custom_hours
+  blocked
+  custom_price
+}
+
 enum RoleKey {
   player
   partner
@@ -70,6 +88,7 @@ model User {
   adminProfile   AdminProfile?
   uploadedFiles  File[]
   auditLogs      AuditLog[]
+  bookingStatusChanges BookingRequestStatusHistory[]
 
   @@map("users")
 }
@@ -133,6 +152,7 @@ model City {
   createdAt          DateTime               @default(now()) @map("created_at")
   updatedAt          DateTime               @updatedAt @map("updated_at")
   districts          District[]
+  addresses          Address[]
   playerProfiles     PlayerProfile[]
   playerPreferences  PlayerPlayPreference[] @relation("preferred_city")
   partnerProfiles    PartnerProfile[]
@@ -148,6 +168,7 @@ model District {
   createdAt          DateTime               @default(now()) @map("created_at")
   updatedAt          DateTime               @updatedAt @map("updated_at")
   city               City                   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  addresses          Address[]
   playerProfiles     PlayerProfile[]
   playerPreferences  PlayerPlayPreference[] @relation("preferred_district")
   partnerProfiles    PartnerProfile[]
@@ -195,6 +216,7 @@ model PlayerProfile {
   visibilitySettings PlayerVisibilitySetting?
   playPreferences    PlayerPlayPreference?
   availabilitySlots  PlayerAvailabilitySlot[]
+  bookingRequests    BookingRequest[]
 
   @@index([cityId])
   @@index([districtId])
@@ -282,10 +304,75 @@ model PartnerProfile {
   profileTypes         PartnerProfileType[]
   contacts             PartnerContact[]
   verificationRequests VerificationRequest[]
+  venues               Venue[]
+  bookingRequests      BookingRequest[]
 
   @@index([cityId])
   @@index([districtId])
   @@map("partner_profiles")
+}
+
+model Address {
+  id          String    @id @default(uuid()) @db.Uuid
+  cityId      String?   @map("city_id") @db.Uuid
+  districtId  String?   @map("district_id") @db.Uuid
+  line1       String    @map("line_1")
+  line2       String?   @map("line_2")
+  postalCode  String?   @map("postal_code")
+  accessNotes String?   @map("access_notes")
+  latitude    Decimal?  @db.Decimal(9, 6)
+  longitude   Decimal?  @db.Decimal(9, 6)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  city        City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  district    District? @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  venues      Venue[]
+
+  @@index([cityId])
+  @@index([districtId])
+  @@map("addresses")
+}
+
+model Venue {
+  id               String         @id @default(uuid()) @db.Uuid
+  partnerProfileId String         @map("partner_profile_id") @db.Uuid
+  addressId        String         @map("address_id") @db.Uuid
+  name             String
+  description      String?
+  contactPhone     String?        @map("contact_phone")
+  contactEmail     String?        @map("contact_email")
+  isActive         Boolean        @default(true) @map("is_active")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  partnerProfile   PartnerProfile @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
+  address          Address        @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  courts           Court[]
+  bookingRequests  BookingRequest[]
+
+  @@index([partnerProfileId])
+  @@index([addressId])
+  @@map("venues")
+}
+
+model Court {
+  id          String   @id @default(uuid()) @db.Uuid
+  venueId     String   @map("venue_id") @db.Uuid
+  name        String
+  surfaceType String   @map("surface_type")
+  isIndoor    Boolean  @default(false) @map("is_indoor")
+  hasLighting Boolean  @default(false) @map("has_lighting")
+  isActive    Boolean  @default(true) @map("is_active")
+  notes       String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  venue       Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  bookingRequests BookingRequest[]
+  scheduleTemplates CourtScheduleTemplate[]
+  scheduleExceptions CourtScheduleException[]
+
+  @@index([venueId])
+  @@map("courts")
 }
 
 model PartnerProfileType {
@@ -355,6 +442,89 @@ model VerificationDocument {
   @@index([verificationRequestId])
   @@index([fileId])
   @@map("verification_documents")
+}
+
+model BookingRequest {
+  id                String               @id @default(uuid()) @db.Uuid
+  playerProfileId   String               @map("player_profile_id") @db.Uuid
+  partnerProfileId  String               @map("partner_profile_id") @db.Uuid
+  venueId           String               @map("venue_id") @db.Uuid
+  courtId           String               @map("court_id") @db.Uuid
+  bookingDate       DateTime             @map("booking_date") @db.Date
+  timeFrom          String               @map("time_from")
+  timeTo            String               @map("time_to")
+  durationMinutes   Int                  @map("duration_minutes")
+  playersCount      Int                  @default(2) @map("players_count")
+  commentFromPlayer String?              @map("comment_from_player")
+  commentFromPartner String?             @map("comment_from_partner")
+  status            BookingRequestStatus @default(draft)
+  submittedAt       DateTime?            @map("submitted_at")
+  respondedAt       DateTime?            @map("responded_at")
+  cancelledAt       DateTime?            @map("cancelled_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+  playerProfile     PlayerProfile        @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
+  partnerProfile    PartnerProfile       @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
+  venue             Venue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  court             Court                @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  statusHistory     BookingRequestStatusHistory[]
+
+  @@index([playerProfileId])
+  @@index([partnerProfileId])
+  @@index([venueId])
+  @@index([courtId])
+  @@index([status, bookingDate])
+  @@map("booking_requests")
+}
+
+model BookingRequestStatusHistory {
+  id               String               @id @default(uuid()) @db.Uuid
+  bookingRequestId String               @map("booking_request_id") @db.Uuid
+  oldStatus        BookingRequestStatus? @map("old_status")
+  newStatus        BookingRequestStatus @map("new_status")
+  changedByUserId  String?              @map("changed_by_user_id") @db.Uuid
+  comment          String?
+  createdAt        DateTime             @default(now()) @map("created_at")
+  bookingRequest   BookingRequest       @relation(fields: [bookingRequestId], references: [id], onDelete: Cascade)
+  changedByUser    User?                @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([bookingRequestId])
+  @@index([changedByUserId])
+  @@map("booking_request_status_history")
+}
+
+model CourtScheduleTemplate {
+  id                  String   @id @default(uuid()) @db.Uuid
+  courtId             String   @map("court_id") @db.Uuid
+  weekday             Int
+  timeFrom            String   @map("time_from")
+  timeTo              String   @map("time_to")
+  slotDurationMinutes Int      @map("slot_duration_minutes")
+  isOpen              Boolean  @default(true) @map("is_open")
+  basePrice           Decimal? @map("base_price") @db.Decimal(10, 2)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  court               Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@index([courtId, weekday])
+  @@map("court_schedule_templates")
+}
+
+model CourtScheduleException {
+  id            String                @id @default(uuid()) @db.Uuid
+  courtId       String                @map("court_id") @db.Uuid
+  date          DateTime              @db.Date
+  exceptionType ScheduleExceptionType @map("exception_type")
+  timeFrom      String?               @map("time_from")
+  timeTo        String?               @map("time_to")
+  customPrice   Decimal?              @map("custom_price") @db.Decimal(10, 2)
+  comment       String?
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+  court         Court                 @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@index([courtId, date])
+  @@map("court_schedule_exceptions")
 }
 
 model AuditLog {

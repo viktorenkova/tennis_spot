@@ -8,17 +8,25 @@ import { hasRole, useDemoSession } from '../lib/session';
 const navigation = [
   {
     title: 'Обзор',
-    items: [{ href: '/', label: 'Главная' }, { href: '/demo/auth', label: 'Вход в демо' }],
+    items: [
+      { href: '/', label: 'Главная' },
+      { href: '/demo/auth', label: 'Вход в демо' },
+    ],
   },
   {
     title: 'Сценарий игрока',
-    items: [{ href: '/me/player', label: 'Профиль игрока' }],
+    items: [
+      { href: '/me/player', label: 'Профиль игрока' },
+      { href: '/booking-requests', label: 'Заявки на бронь' },
+    ],
   },
   {
-    title: 'Сценарий партнера',
+    title: 'Сценарий партнёра',
     items: [
-      { href: '/me/partner', label: 'Профиль партнера' },
-      { href: '/me/partner/verification', label: 'Верификация партнера' },
+      { href: '/me/partner', label: 'Профиль партнёра' },
+      { href: '/me/partner/venues', label: 'Площадки и корты' },
+      { href: '/me/partner/verification', label: 'Верификация партнёра' },
+      { href: '/me/partner/booking-requests', label: 'Входящие заявки' },
     ],
   },
   {
@@ -48,7 +56,7 @@ export function DemoShell({
           <p className="eyebrow">tennis_spot</p>
           <h1 className="brand-title">Демо-срез MVP</h1>
           <p className="brand-copy">
-            Рабочий сценарий для проверки профилей, верификации партнера и решения администратора.
+            Рабочий сценарий для проверки профилей, площадок, верификации партнёра и заявок на бронь.
           </p>
         </div>
 
@@ -75,7 +83,7 @@ export function DemoShell({
           {!isLoaded ? <p className="muted">Проверяем текущий вход...</p> : null}
           {isLoaded && !session ? (
             <p className="muted">
-              Аккаунт не выбран. Сначала откройте страницу входа в демо и авторизуйтесь.
+              Аккаунт не выбран. Сначала откройте страницу демо-входа и авторизуйтесь.
             </p>
           ) : null}
           {session?.user ? (
@@ -85,7 +93,8 @@ export function DemoShell({
               </p>
               <p className="session-line">
                 <strong>Роли:</strong>{' '}
-                {session.user.roles.map(({ role }) => formatRole(role.key)).join(', ') || 'Не указаны'}
+                {session.user.roles.map(({ role }) => formatRole(role.key)).join(', ') ||
+                  'Не указаны'}
               </p>
               <button type="button" className="ghost-button" onClick={clearSession}>
                 Выйти из аккаунта

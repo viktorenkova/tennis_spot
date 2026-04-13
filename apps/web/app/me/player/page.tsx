@@ -185,7 +185,10 @@ export default function PlayerProfilePage() {
         if (nextProfile.cityId) {
           await loadDistricts(nextProfile.cityId, nextProfile.districtId ?? undefined);
         }
-      } else if (profileResponse.error?.code && profileResponse.error.code !== 'NOT_FOUND') {
+      } else if (
+        profileResponse.error?.code &&
+        profileResponse.error.code !== 'PLAYER_PROFILE_NOT_FOUND'
+      ) {
         setError(profileResponse.error.message ?? 'Не удалось загрузить профиль игрока.');
       }
     };
@@ -229,7 +232,6 @@ export default function PlayerProfilePage() {
 
     const nextAccount = accountResponse.data;
     setAccount(nextAccount);
-    syncSessionUser(nextAccount);
 
     const profileResponse = await apiRequest<PlayerProfile>(
       profile ? '/player/profile/me' : '/player/profile',
@@ -253,7 +255,18 @@ export default function PlayerProfilePage() {
       return;
     }
 
-    setProfile(profileResponse.data);
+    const savedProfile = profileResponse.data;
+    setProfile(savedProfile);
+    setForm({
+      firstName: savedProfile.firstName ?? '',
+      lastName: savedProfile.lastName ?? '',
+      bio: savedProfile.bio ?? '',
+      ntrpSelfRating: savedProfile.ntrpSelfRating ? String(savedProfile.ntrpSelfRating) : '',
+      cityId: savedProfile.cityId ?? '',
+      districtId: savedProfile.districtId ?? '',
+      email: nextAccount.email ?? '',
+    });
+    syncSessionUser(nextAccount);
     setMessage(profile ? 'Изменения сохранены.' : 'Профиль игрока создан.');
     setLoading(false);
   };

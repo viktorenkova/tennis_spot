@@ -17,10 +17,21 @@ type VerificationRequestStatus =
   | 'approved'
   | 'rejected'
   | 'needs_correction';
+type BookingRequestStatus =
+  | 'draft'
+  | 'pending'
+  | 'confirmed'
+  | 'rejected'
+  | 'cancelled_by_player'
+  | 'cancelled_by_partner'
+  | 'expired'
+  | 'completed';
+type ScheduleExceptionType = 'closed' | 'custom_hours' | 'blocked' | 'custom_price';
 
 type UserRecord = {
   id: string;
   phone: string;
+  email?: string | null;
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -120,9 +131,72 @@ type PartnerProfileRecord = {
   legalName: string;
   brandName: string | null;
   description: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  taxId?: string | null;
+  legalAddress?: string | null;
+  actualAddress?: string | null;
   verificationStatus: PartnerVerificationStatus;
   cityId: string | null;
   districtId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type CityRecord = {
+  id: string;
+  slug: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type DistrictRecord = {
+  id: string;
+  cityId: string;
+  slug: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type AddressRecord = {
+  id: string;
+  cityId: string | null;
+  districtId: string | null;
+  line1: string;
+  line2: string | null;
+  postalCode: string | null;
+  accessNotes: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type VenueRecord = {
+  id: string;
+  partnerProfileId: string;
+  addressId: string;
+  name: string;
+  description: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type CourtRecord = {
+  id: string;
+  venueId: string;
+  name: string;
+  surfaceType: string;
+  isIndoor: boolean;
+  hasLighting: boolean;
+  isActive: boolean;
+  notes: string | null;
+  sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -145,6 +219,63 @@ type VerificationRequestRecord = {
   updatedAt: Date;
 };
 
+type BookingRequestRecord = {
+  id: string;
+  playerProfileId: string;
+  partnerProfileId: string;
+  venueId: string;
+  courtId: string;
+  bookingDate: Date;
+  timeFrom: string;
+  timeTo: string;
+  durationMinutes: number;
+  playersCount: number;
+  commentFromPlayer: string | null;
+  commentFromPartner: string | null;
+  status: BookingRequestStatus;
+  submittedAt: Date | null;
+  respondedAt: Date | null;
+  cancelledAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type BookingRequestStatusHistoryRecord = {
+  id: string;
+  bookingRequestId: string;
+  oldStatus: BookingRequestStatus | null;
+  newStatus: BookingRequestStatus;
+  changedByUserId: string | null;
+  comment: string | null;
+  createdAt: Date;
+};
+
+type CourtScheduleTemplateRecord = {
+  id: string;
+  courtId: string;
+  weekday: number;
+  timeFrom: string;
+  timeTo: string;
+  slotDurationMinutes: number;
+  isOpen: boolean;
+  basePrice: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type CourtScheduleExceptionRecord = {
+  id: string;
+  courtId: string;
+  date: Date;
+  exceptionType: ScheduleExceptionType;
+  timeFrom: string | null;
+  timeTo: string | null;
+  customPrice: number | null;
+  comment: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type AuditLogRecord = {
   id: string;
   actorUserId: string | null;
@@ -163,13 +294,22 @@ export class InMemoryPrismaService {
   private userSettings: UserSettingRecord[] = [];
   private userSessions: UserSessionRecord[] = [];
   private authPhoneChallenges: AuthPhoneChallengeRecord[] = [];
+  private cities: CityRecord[] = [];
+  private districts: DistrictRecord[] = [];
   private playerProfiles: PlayerProfileRecord[] = [];
   private playerVisibilitySettings: PlayerVisibilitySettingRecord[] = [];
   private playerPlayPreferences: PlayerPlayPreferenceRecord[] = [];
   private partnerTypes: PartnerTypeRecord[] = [];
   private partnerProfiles: PartnerProfileRecord[] = [];
   private partnerProfileTypes: PartnerProfileTypeRecord[] = [];
+  private addresses: AddressRecord[] = [];
+  private venues: VenueRecord[] = [];
+  private courts: CourtRecord[] = [];
   private verificationRequests: VerificationRequestRecord[] = [];
+  private bookingRequests: BookingRequestRecord[] = [];
+  private bookingRequestStatusHistoryEntries: BookingRequestStatusHistoryRecord[] = [];
+  private courtScheduleTemplates: CourtScheduleTemplateRecord[] = [];
+  private courtScheduleExceptions: CourtScheduleExceptionRecord[] = [];
   private auditLogs: AuditLogRecord[] = [];
 
   constructor() {
@@ -186,6 +326,16 @@ export class InMemoryPrismaService {
 
   role: any = {
     findUnique: async (_args: any) => null,
+  };
+
+  city: any = {
+    findUnique: async (_args: any) => null,
+    findMany: async (_args: any) => [],
+  };
+
+  district: any = {
+    findUnique: async (_args: any) => null,
+    findMany: async (_args: any) => [],
   };
 
   user: any = {
@@ -244,12 +394,60 @@ export class InMemoryPrismaService {
     create: async (_args: any) => null,
   };
 
+  address: any = {
+    create: async (_args: any) => null,
+    update: async (_args: any) => null,
+  };
+
+  venue: any = {
+    create: async (_args: any) => null,
+    findMany: async (_args: any) => [],
+    findFirst: async (_args: any) => null,
+    update: async (_args: any) => null,
+  };
+
+  court: any = {
+    create: async (_args: any) => null,
+    update: async (_args: any) => null,
+    findFirst: async (_args: any) => null,
+    findUnique: async (_args: any) => null,
+  };
+
+  courtScheduleTemplate: any = {
+    create: async (_args: any) => null,
+    findMany: async (_args: any) => [],
+    findFirst: async (_args: any) => null,
+    update: async (_args: any) => null,
+    delete: async (_args: any) => null,
+  };
+
+  courtScheduleException: any = {
+    create: async (_args: any) => null,
+    findMany: async (_args: any) => [],
+    findFirst: async (_args: any) => null,
+    update: async (_args: any) => null,
+    delete: async (_args: any) => null,
+  };
+
   verificationRequest: any = {
     findFirst: async (_args: any) => null,
     create: async (_args: any) => null,
     update: async (_args: any) => null,
     findMany: async (_args: any) => [],
     findUnique: async (_args: any) => null,
+  };
+
+  bookingRequest: any = {
+    create: async (_args: any) => null,
+    findMany: async (_args: any) => [],
+    findFirst: async (_args: any) => null,
+    findUnique: async (_args: any) => null,
+    update: async (_args: any) => null,
+  };
+
+  bookingRequestStatusHistory: any = {
+    create: async (_args: any) => null,
+    findMany: async (_args: any) => [],
   };
 
   auditLog: any = {
@@ -281,6 +479,7 @@ export class InMemoryPrismaService {
   };
 
   private seed() {
+    const now = new Date();
     const roleRecords: RoleRecord[] = [
       { id: randomUUID(), key: 'player', name: 'Player', description: 'Player' },
       { id: randomUUID(), key: 'partner', name: 'Partner', description: 'Partner' },
@@ -299,6 +498,49 @@ export class InMemoryPrismaService {
     this.roles.push(...roleRecords);
     this.partnerTypes.push(...partnerTypeRecords);
 
+    const moscow: CityRecord = {
+      id: randomUUID(),
+      slug: 'moscow',
+      name: 'Москва',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const saintPetersburg: CityRecord = {
+      id: randomUUID(),
+      slug: 'saint-petersburg',
+      name: 'Санкт-Петербург',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.cities.push(moscow, saintPetersburg);
+    this.districts.push(
+      {
+        id: randomUUID(),
+        cityId: moscow.id,
+        slug: 'cao',
+        name: 'Центральный административный округ',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: randomUUID(),
+        cityId: moscow.id,
+        slug: 'sao',
+        name: 'Северный административный округ',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: randomUUID(),
+        cityId: saintPetersburg.id,
+        slug: 'primorskiy',
+        name: 'Приморский район',
+        createdAt: now,
+        updatedAt: now,
+      },
+    );
+
     const demoPlayer = this.createSeedUser('+79990000001', ['player']);
     const demoPartner = this.createSeedUser('+79990000002', ['player']);
     const demoAdmin = this.createSeedUser('+79990000003', ['admin']);
@@ -310,11 +552,16 @@ export class InMemoryPrismaService {
       legalName: 'Review Club LLC',
       brandName: 'Review Club',
       description: 'Seeded partner profile for review flow.',
+      contactPhone: '+79990000004',
+      contactEmail: 'review-partner@example.test',
+      taxId: null,
+      legalAddress: null,
+      actualAddress: null,
       verificationStatus: 'pending_verification',
-      cityId: null,
-      districtId: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      cityId: moscow.id,
+      districtId: this.districts[0].id,
+      createdAt: now,
+      updatedAt: now,
     };
 
     this.partnerProfiles.push(reviewPartnerProfile);
@@ -330,10 +577,10 @@ export class InMemoryPrismaService {
       partnerProfileId: reviewPartnerProfile.id,
       status: 'submitted',
       comment: null,
-      submittedAt: new Date(),
+      submittedAt: now,
       reviewedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     };
 
     this.verificationRequests.push(reviewRequest);
@@ -345,7 +592,7 @@ export class InMemoryPrismaService {
       targetId: reviewRequest.id,
       comment: 'Seeded pending request.',
       metadata: { status: 'submitted' },
-      createdAt: new Date(),
+      createdAt: now,
     });
 
     void demoPlayer;
@@ -414,6 +661,47 @@ export class InMemoryPrismaService {
       return null;
     };
 
+    this.city.findUnique = async ({ where }: any) =>
+      this.cities.find((city) => city.id === where.id || city.slug === where.slug) ?? null;
+
+    this.city.findMany = async ({ include, orderBy }: any = {}) => {
+      const items = [...this.cities];
+
+      if (orderBy?.name === 'asc') {
+        items.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+      }
+
+      return items.map((city) => ({
+        ...city,
+        ...(include?.districts
+          ? {
+              districts: this.districts
+                .filter((district) => district.cityId === city.id)
+                .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+            }
+          : {}),
+      }));
+    };
+
+    this.district.findUnique = async ({ where }: any) =>
+      this.districts.find(
+        (district) => district.id === where.id || district.slug === where.slug,
+      ) ?? null;
+
+    this.district.findMany = async ({ where, orderBy }: any = {}) => {
+      let items = [...this.districts];
+
+      if (where?.cityId) {
+        items = items.filter((district) => district.cityId === where.cityId);
+      }
+
+      if (orderBy?.name === 'asc') {
+        items.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+      }
+
+      return items;
+    };
+
     this.user.findUnique = async ({ where, include }: any) => {
       const user =
         this.users.find((item) => {
@@ -439,6 +727,7 @@ export class InMemoryPrismaService {
       const user: UserRecord = {
         id: randomUUID(),
         phone: data.phone,
+        email: data.email ?? null,
         status: data.status,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -478,6 +767,7 @@ export class InMemoryPrismaService {
       const created: UserRecord = {
         id: randomUUID(),
         phone: create.phone,
+        email: create.email ?? null,
         status: create.status,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -799,6 +1089,11 @@ export class InMemoryPrismaService {
         legalName: data.legalName,
         brandName: data.brandName ?? null,
         description: data.description ?? null,
+        contactPhone: data.contactPhone ?? null,
+        contactEmail: data.contactEmail ?? null,
+        taxId: data.taxId ?? null,
+        legalAddress: data.legalAddress ?? null,
+        actualAddress: data.actualAddress ?? null,
         verificationStatus: 'draft',
         cityId: data.cityId ?? null,
         districtId: data.districtId ?? null,
@@ -863,6 +1158,492 @@ export class InMemoryPrismaService {
 
       this.partnerProfileTypes.push(created);
       return created;
+    };
+
+    this.address.create = async ({ data }: any) => {
+      const address: AddressRecord = {
+        id: randomUUID(),
+        cityId: data.cityId ?? null,
+        districtId: data.districtId ?? null,
+        line1: data.line1,
+        line2: data.line2 ?? null,
+        postalCode: data.postalCode ?? null,
+        accessNotes: data.accessNotes ?? null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      this.addresses.push(address);
+      return address;
+    };
+
+    this.address.update = async ({ where, data }: any) => {
+      const address = this.addresses.find((item) => item.id === where.id) ?? null;
+
+      if (!address) {
+        return null;
+      }
+
+      Object.assign(address, data, { updatedAt: new Date() });
+      return address;
+    };
+
+    this.venue.create = async ({ data, include }: any) => {
+      const venue: VenueRecord = {
+        id: randomUUID(),
+        partnerProfileId: data.partnerProfileId,
+        addressId: data.addressId,
+        name: data.name,
+        description: data.description ?? null,
+        contactPhone: data.contactPhone ?? null,
+        contactEmail: data.contactEmail ?? null,
+        isActive: data.isActive ?? true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      this.venues.push(venue);
+      return this.withVenueIncludes(venue, include);
+    };
+
+    this.venue.findMany = async ({ where, include, orderBy }: any = {}) => {
+      let items = [...this.venues];
+
+      if (where?.partnerProfileId) {
+        items = items.filter((venue) => venue.partnerProfileId === where.partnerProfileId);
+      }
+
+      if (where?.id) {
+        items = items.filter((venue) => venue.id === where.id);
+      }
+
+      if (typeof where?.isActive === 'boolean') {
+        items = items.filter((venue) => venue.isActive === where.isActive);
+      }
+
+      if (where?.partnerProfile?.is?.verificationStatus) {
+        items = items.filter((venue) => {
+          const partnerProfile = this.partnerProfiles.find(
+            (profile) => profile.id === venue.partnerProfileId,
+          );
+
+          return (
+            partnerProfile?.verificationStatus === where.partnerProfile.is.verificationStatus
+          );
+        });
+      }
+
+      if (where?.partnerProfile?.is?.ownerUserId) {
+        items = items.filter((venue) => {
+          const partnerProfile = this.partnerProfiles.find(
+            (profile) => profile.id === venue.partnerProfileId,
+          );
+
+          return partnerProfile?.ownerUserId === where.partnerProfile.is.ownerUserId;
+        });
+      }
+
+      if (where?.address?.is?.cityId) {
+        items = items.filter((venue) => {
+          const address = this.addresses.find((item) => item.id === venue.addressId);
+          return address?.cityId === where.address.is.cityId;
+        });
+      }
+
+      if (orderBy?.createdAt === 'desc') {
+        items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+
+      return items.map((venue) => this.withVenueIncludes(venue, include));
+    };
+
+    this.venue.findFirst = async ({ where, include }: any = {}) => {
+      const venues = await this.venue.findMany({ where, include });
+      return venues[0] ?? null;
+    };
+
+    this.venue.update = async ({ where, data, include }: any) => {
+      const venue = this.venues.find((item) => item.id === where.id) ?? null;
+
+      if (!venue) {
+        return null;
+      }
+
+      Object.assign(venue, data, { updatedAt: new Date() });
+      return this.withVenueIncludes(venue, include);
+    };
+
+    this.court.create = async ({ data }: any) => {
+      const court: CourtRecord = {
+        id: randomUUID(),
+        venueId: data.venueId,
+        name: data.name,
+        surfaceType: data.surfaceType,
+        isIndoor: data.isIndoor ?? false,
+        hasLighting: data.hasLighting ?? false,
+        isActive: data.isActive ?? true,
+        notes: data.notes ?? null,
+        sortOrder: data.sortOrder ?? 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      this.courts.push(court);
+      return court;
+    };
+
+    this.court.update = async ({ where, data }: any) => {
+      const court = this.courts.find((item) => item.id === where.id) ?? null;
+
+      if (!court) {
+        return null;
+      }
+
+      Object.assign(court, data, { updatedAt: new Date() });
+      return court;
+    };
+
+    this.court.findFirst = async ({ where }: any) =>
+      this.courts.find((court) => {
+        if (where?.id && court.id !== where.id) {
+          return false;
+        }
+
+        if (where?.venueId && court.venueId !== where.venueId) {
+          return false;
+        }
+
+        if (typeof where?.isActive === 'boolean' && court.isActive !== where.isActive) {
+          return false;
+        }
+
+        if (where?.venue?.is?.partnerProfile?.is?.ownerUserId) {
+          const venue = this.venues.find((item) => item.id === court.venueId);
+          if (!venue) {
+            return false;
+          }
+
+          const partnerProfile = this.partnerProfiles.find(
+            (profile) => profile.id === venue.partnerProfileId,
+          );
+
+          return partnerProfile?.ownerUserId === where.venue.is.partnerProfile.is.ownerUserId;
+        }
+
+        return true;
+      }) ?? null;
+
+    this.court.findUnique = async ({ where, include }: any) => {
+      const court = this.courts.find((item) => item.id === where.id) ?? null;
+
+      if (!court) {
+        return null;
+      }
+
+      return this.withCourtIncludes(court, include);
+    };
+
+    this.courtScheduleTemplate.create = async ({ data }: any) => {
+      const template: CourtScheduleTemplateRecord = {
+        id: randomUUID(),
+        courtId: data.courtId,
+        weekday: data.weekday,
+        timeFrom: data.timeFrom,
+        timeTo: data.timeTo,
+        slotDurationMinutes: data.slotDurationMinutes,
+        isOpen: data.isOpen ?? true,
+        basePrice: data.basePrice ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      this.courtScheduleTemplates.push(template);
+      return template;
+    };
+
+    this.courtScheduleTemplate.findMany = async ({ where, orderBy }: any = {}) => {
+      let items = [...this.courtScheduleTemplates];
+
+      if (where?.id) {
+        items = items.filter((template) => template.id === where.id);
+      }
+
+      if (where?.courtId) {
+        items = items.filter((template) => template.courtId === where.courtId);
+      }
+
+      if (where?.weekday) {
+        items = items.filter((template) => template.weekday === where.weekday);
+      }
+
+      if (Array.isArray(orderBy)) {
+        items.sort((left, right) => {
+          for (const rule of orderBy) {
+            const [field, direction] = Object.entries(rule)[0] as [keyof CourtScheduleTemplateRecord, 'asc' | 'desc'];
+            const leftValue = left[field];
+            const rightValue = right[field];
+
+            if (leftValue === rightValue) {
+              continue;
+            }
+
+            const result = String(leftValue).localeCompare(String(rightValue));
+            return direction === 'asc' ? result : -result;
+          }
+
+          return 0;
+        });
+      }
+
+      return items;
+    };
+
+    this.courtScheduleTemplate.findFirst = async ({ where }: any = {}) =>
+      (await this.courtScheduleTemplate.findMany({ where }))[0] ?? null;
+
+    this.courtScheduleTemplate.update = async ({ where, data }: any) => {
+      const template = this.courtScheduleTemplates.find((item) => item.id === where.id) ?? null;
+
+      if (!template) {
+        return null;
+      }
+
+      Object.assign(template, data, { updatedAt: new Date() });
+      return template;
+    };
+
+    this.courtScheduleTemplate.delete = async ({ where }: any) => {
+      const index = this.courtScheduleTemplates.findIndex((item) => item.id === where.id);
+
+      if (index === -1) {
+        return null;
+      }
+
+      const [deleted] = this.courtScheduleTemplates.splice(index, 1);
+      return deleted;
+    };
+
+    this.courtScheduleException.create = async ({ data }: any) => {
+      const exception: CourtScheduleExceptionRecord = {
+        id: randomUUID(),
+        courtId: data.courtId,
+        date: data.date,
+        exceptionType: data.exceptionType,
+        timeFrom: data.timeFrom ?? null,
+        timeTo: data.timeTo ?? null,
+        customPrice: data.customPrice ?? null,
+        comment: data.comment ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      this.courtScheduleExceptions.push(exception);
+      return exception;
+    };
+
+    this.courtScheduleException.findMany = async ({ where, orderBy }: any = {}) => {
+      let items = [...this.courtScheduleExceptions];
+
+      if (where?.id) {
+        items = items.filter((exception) => exception.id === where.id);
+      }
+
+      if (where?.courtId) {
+        items = items.filter((exception) => exception.courtId === where.courtId);
+      }
+
+      if (where?.date) {
+        items = items.filter(
+          (exception) => exception.date.toISOString().slice(0, 10) === where.date.toISOString().slice(0, 10),
+        );
+      }
+
+      if (Array.isArray(orderBy)) {
+        items.sort((left, right) => {
+          for (const rule of orderBy) {
+            const [field, direction] = Object.entries(rule)[0] as [keyof CourtScheduleExceptionRecord, 'asc' | 'desc'];
+            const leftValue = left[field];
+            const rightValue = right[field];
+
+            const leftComparable =
+              leftValue instanceof Date ? leftValue.toISOString() : String(leftValue ?? '');
+            const rightComparable =
+              rightValue instanceof Date ? rightValue.toISOString() : String(rightValue ?? '');
+
+            if (leftComparable === rightComparable) {
+              continue;
+            }
+
+            const result = leftComparable.localeCompare(rightComparable);
+            return direction === 'asc' ? result : -result;
+          }
+
+          return 0;
+        });
+      }
+
+      return items;
+    };
+
+    this.courtScheduleException.findFirst = async ({ where }: any = {}) =>
+      (await this.courtScheduleException.findMany({ where }))[0] ?? null;
+
+    this.courtScheduleException.update = async ({ where, data }: any) => {
+      const exception = this.courtScheduleExceptions.find((item) => item.id === where.id) ?? null;
+
+      if (!exception) {
+        return null;
+      }
+
+      Object.assign(exception, data, { updatedAt: new Date() });
+      return exception;
+    };
+
+    this.courtScheduleException.delete = async ({ where }: any) => {
+      const index = this.courtScheduleExceptions.findIndex((item) => item.id === where.id);
+
+      if (index === -1) {
+        return null;
+      }
+
+      const [deleted] = this.courtScheduleExceptions.splice(index, 1);
+      return deleted;
+    };
+
+    this.bookingRequest.create = async ({ data, include }: any) => {
+      const bookingRequest: BookingRequestRecord = {
+        id: randomUUID(),
+        playerProfileId: data.playerProfileId,
+        partnerProfileId: data.partnerProfileId,
+        venueId: data.venueId,
+        courtId: data.courtId,
+        bookingDate: data.bookingDate,
+        timeFrom: data.timeFrom,
+        timeTo: data.timeTo,
+        durationMinutes: data.durationMinutes,
+        playersCount: data.playersCount,
+        commentFromPlayer: data.commentFromPlayer ?? null,
+        commentFromPartner: data.commentFromPartner ?? null,
+        status: data.status ?? 'draft',
+        submittedAt: data.submittedAt ?? null,
+        respondedAt: data.respondedAt ?? null,
+        cancelledAt: data.cancelledAt ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      this.bookingRequests.push(bookingRequest);
+      return this.withBookingRequestIncludes(bookingRequest, include);
+    };
+
+    this.bookingRequest.findMany = async ({ where, include, orderBy }: any = {}) => {
+      let items = [...this.bookingRequests];
+
+      if (where?.id && !where.id.not) {
+        items = items.filter((bookingRequest) => bookingRequest.id === where.id);
+      }
+
+      if (where?.id?.not) {
+        items = items.filter((bookingRequest) => bookingRequest.id !== where.id.not);
+      }
+
+      if (where?.playerProfileId) {
+        items = items.filter(
+          (bookingRequest) => bookingRequest.playerProfileId === where.playerProfileId,
+        );
+      }
+
+      if (where?.partnerProfileId) {
+        items = items.filter(
+          (bookingRequest) => bookingRequest.partnerProfileId === where.partnerProfileId,
+        );
+      }
+
+      if (where?.status) {
+        if (where.status.in) {
+          items = items.filter((bookingRequest) => where.status.in.includes(bookingRequest.status));
+        } else {
+          items = items.filter((bookingRequest) => bookingRequest.status === where.status);
+        }
+      }
+
+      if (where?.bookingDate) {
+        items = items.filter(
+          (bookingRequest) =>
+            bookingRequest.bookingDate.toISOString().slice(0, 10) ===
+            where.bookingDate.toISOString().slice(0, 10),
+        );
+      }
+
+      if (orderBy?.createdAt === 'desc') {
+        items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      } else if (orderBy?.createdAt === 'asc') {
+        items.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      }
+
+      return items.map((bookingRequest) => this.withBookingRequestIncludes(bookingRequest, include));
+    };
+
+    this.bookingRequest.findFirst = async ({ where, include }: any = {}) => {
+      const items = await this.bookingRequest.findMany({ where, include });
+      return items[0] ?? null;
+    };
+
+    this.bookingRequest.findUnique = async ({ where, include }: any) => {
+      const bookingRequest = this.bookingRequests.find((item) => item.id === where.id) ?? null;
+      return bookingRequest ? this.withBookingRequestIncludes(bookingRequest, include) : null;
+    };
+
+    this.bookingRequest.update = async ({ where, data, include }: any) => {
+      const bookingRequest = this.bookingRequests.find((item) => item.id === where.id) ?? null;
+
+      if (!bookingRequest) {
+        return null;
+      }
+
+      Object.assign(bookingRequest, data, { updatedAt: new Date() });
+      return this.withBookingRequestIncludes(bookingRequest, include);
+    };
+
+    this.bookingRequestStatusHistory.create = async ({ data }: any) => {
+      const historyEntry: BookingRequestStatusHistoryRecord = {
+        id: randomUUID(),
+        bookingRequestId: data.bookingRequestId,
+        oldStatus: data.oldStatus ?? null,
+        newStatus: data.newStatus,
+        changedByUserId: data.changedByUserId ?? null,
+        comment: data.comment ?? null,
+        createdAt: new Date(),
+      };
+
+      this.bookingRequestStatusHistoryEntries.push(historyEntry);
+      return historyEntry;
+    };
+
+    this.bookingRequestStatusHistory.findMany = async ({ where, include, orderBy }: any = {}) => {
+      let items = [...this.bookingRequestStatusHistoryEntries];
+
+      if (where?.bookingRequestId) {
+        items = items.filter((entry) => entry.bookingRequestId === where.bookingRequestId);
+      }
+
+      if (orderBy?.createdAt === 'asc') {
+        items.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      } else if (orderBy?.createdAt === 'desc') {
+        items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+
+      return items.map((entry) => ({
+        ...entry,
+        ...(include?.changedByUser
+          ? {
+              changedByUser:
+                this.users.find((user) => user.id === entry.changedByUserId) ?? null,
+            }
+          : {}),
+      }));
     };
 
     this.verificationRequest.findFirst = async ({ where, orderBy, include }: any) => {
@@ -976,6 +1757,7 @@ export class InMemoryPrismaService {
     const user: UserRecord = {
       id: randomUUID(),
       phone,
+      email: null,
       status: 'active',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1031,6 +1813,11 @@ export class InMemoryPrismaService {
   private withPlayerProfileIncludes(profile: PlayerProfileRecord, include: any) {
     return {
       ...profile,
+      ...(include?.user
+        ? {
+            user: this.users.find((user) => user.id === profile.userId) ?? null,
+          }
+        : {}),
       ...(include?.visibilitySettings
         ? {
             visibilitySettings:
@@ -1073,8 +1860,95 @@ export class InMemoryPrismaService {
           }
         : {}),
       ...(include?.contacts ? { contacts: [] } : {}),
-      ...(include?.city ? { city: null } : {}),
-      ...(include?.district ? { district: null } : {}),
+      ...(include?.city
+        ? { city: this.cities.find((city) => city.id === profile.cityId) ?? null }
+        : {}),
+      ...(include?.district
+        ? { district: this.districts.find((district) => district.id === profile.districtId) ?? null }
+        : {}),
+    };
+  }
+
+  private withAddressIncludes(address: AddressRecord, include: any) {
+    return {
+      ...address,
+      ...(include?.city
+        ? { city: this.cities.find((city) => city.id === address.cityId) ?? null }
+        : {}),
+      ...(include?.district
+        ? {
+            district:
+              this.districts.find((district) => district.id === address.districtId) ?? null,
+          }
+        : {}),
+    };
+  }
+
+  private withCourtIncludes(court: CourtRecord, include: any) {
+    return {
+      ...court,
+      ...(include?.venue
+        ? {
+            venue: this.withVenueIncludes(
+              this.venues.find((venue) => venue.id === court.venueId)!,
+              include.venue.include,
+            ),
+          }
+        : {}),
+      ...(include?.scheduleTemplates
+        ? {
+            scheduleTemplates: this.courtScheduleTemplates.filter(
+              (template) => template.courtId === court.id,
+            ),
+          }
+        : {}),
+      ...(include?.scheduleExceptions
+        ? {
+            scheduleExceptions: this.courtScheduleExceptions.filter(
+              (exception) => exception.courtId === court.id,
+            ),
+          }
+        : {}),
+    };
+  }
+
+  private withVenueIncludes(venue: VenueRecord, include: any) {
+    return {
+      ...venue,
+      ...(include?.address
+        ? {
+            address: this.withAddressIncludes(
+              this.addresses.find((address) => address.id === venue.addressId)!,
+              include.address.include,
+            ),
+          }
+        : {}),
+      ...(include?.courts
+        ? {
+            courts: this.courts
+              .filter((court) => court.venueId === venue.id)
+              .filter((court) =>
+                typeof include.courts.where?.isActive === 'boolean'
+                  ? court.isActive === include.courts.where.isActive
+                  : true,
+              )
+              .sort((a, b) => {
+                if (a.sortOrder !== b.sortOrder) {
+                  return a.sortOrder - b.sortOrder;
+                }
+
+                return a.name.localeCompare(b.name, 'ru');
+              }),
+          }
+        : {}),
+      ...(include?.partnerProfile
+        ? {
+            partnerProfile: this.withPartnerProfileIncludes(
+              this.partnerProfiles.find((profile) => profile.id === venue.partnerProfileId)!,
+              include.partnerProfile.include,
+            ),
+          }
+        : {}),
     };
   }
 
@@ -1093,6 +1967,60 @@ export class InMemoryPrismaService {
           }
         : {}),
       ...(include?.documents ? { documents: [] } : {}),
+    };
+  }
+
+  private withBookingRequestIncludes(bookingRequest: BookingRequestRecord, include: any) {
+    return {
+      ...bookingRequest,
+      ...(include?.playerProfile
+        ? {
+            playerProfile: this.withPlayerProfileIncludes(
+              this.playerProfiles.find((profile) => profile.id === bookingRequest.playerProfileId)!,
+              include.playerProfile.include,
+            ),
+          }
+        : {}),
+      ...(include?.partnerProfile
+        ? {
+            partnerProfile: this.withPartnerProfileIncludes(
+              this.partnerProfiles.find((profile) => profile.id === bookingRequest.partnerProfileId)!,
+              include.partnerProfile.include,
+            ),
+          }
+        : {}),
+      ...(include?.venue
+        ? {
+            venue: this.withVenueIncludes(
+              this.venues.find((venue) => venue.id === bookingRequest.venueId)!,
+              include.venue.include,
+            ),
+          }
+        : {}),
+      ...(include?.court
+        ? {
+            court: this.courts.find((court) => court.id === bookingRequest.courtId) ?? null,
+          }
+        : {}),
+      ...(include?.statusHistory
+        ? {
+            statusHistory: this.bookingRequestStatusHistoryEntries
+              .filter((entry) => entry.bookingRequestId === bookingRequest.id)
+              .sort((a, b) => {
+                const direction = include.statusHistory.orderBy?.createdAt === 'desc' ? -1 : 1;
+                return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
+              })
+              .map((entry) => ({
+                ...entry,
+                ...(include.statusHistory.include?.changedByUser
+                  ? {
+                      changedByUser:
+                        this.users.find((user) => user.id === entry.changedByUserId) ?? null,
+                    }
+                  : {}),
+              })),
+          }
+        : {}),
     };
   }
 }

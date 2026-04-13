@@ -1,3 +1,5 @@
+'use client';
+
 export type StatusTone = 'neutral' | 'success' | 'warning' | 'danger';
 
 const verificationRequestStatuses: Record<string, { label: string; tone: StatusTone }> = {
@@ -12,10 +14,21 @@ const verificationRequestStatuses: Record<string, { label: string; tone: StatusT
 const partnerVerificationStatuses: Record<string, { label: string; tone: StatusTone }> = {
   draft: { label: 'Черновик', tone: 'neutral' },
   pending_verification: { label: 'На проверке', tone: 'warning' },
-  verified: { label: 'Подтвержден', tone: 'success' },
-  rejected: { label: 'Отклонен', tone: 'danger' },
+  verified: { label: 'Подтверждён', tone: 'success' },
+  rejected: { label: 'Отклонён', tone: 'danger' },
   suspended: { label: 'Приостановлен', tone: 'danger' },
   archived: { label: 'В архиве', tone: 'neutral' },
+};
+
+const bookingRequestStatuses: Record<string, { label: string; tone: StatusTone }> = {
+  draft: { label: 'Черновик', tone: 'neutral' },
+  pending: { label: 'Ожидает решения партнёра', tone: 'warning' },
+  confirmed: { label: 'Подтверждена', tone: 'success' },
+  rejected: { label: 'Отклонена', tone: 'danger' },
+  cancelled_by_player: { label: 'Отменена игроком', tone: 'neutral' },
+  cancelled_by_partner: { label: 'Отменена партнёром', tone: 'danger' },
+  expired: { label: 'Истекла', tone: 'danger' },
+  completed: { label: 'Завершена', tone: 'success' },
 };
 
 const playerStatuses: Record<string, { label: string; tone: StatusTone }> = {
@@ -27,7 +40,7 @@ const playerStatuses: Record<string, { label: string; tone: StatusTone }> = {
 
 const roles: Record<string, string> = {
   player: 'Игрок',
-  partner: 'Партнер',
+  partner: 'Партнёр',
   admin: 'Администратор',
   superadmin: 'Суперадминистратор',
 };
@@ -41,6 +54,16 @@ const partnerTypes: Record<string, string> = {
 };
 
 const auditActions: Record<string, string> = {
+  'venue.created': 'Создана площадка',
+  'venue.updated': 'Обновлена площадка',
+  'court.created': 'Создан корт',
+  'court.updated': 'Обновлён корт',
+  'booking_request.created': 'Создана заявка на бронирование',
+  'booking_request.confirmed': 'Заявка подтверждена',
+  'booking_request.rejected': 'Заявка отклонена',
+  'booking_request.cancelled_by_player': 'Заявка отменена игроком',
+  'booking_request.cancelled_by_partner': 'Заявка отменена партнёром',
+  'booking_request.completed': 'Заявка завершена',
   'verification_request.draft_created': 'Создан черновик заявки',
   'verification_request.submitted': 'Заявка отправлена',
   'verification_request.approved': 'Заявка подтверждена',
@@ -69,6 +92,14 @@ export function formatPartnerVerificationStatus(status: string) {
 
 export function getPartnerVerificationStatusTone(status: string) {
   return partnerVerificationStatuses[status]?.tone ?? 'neutral';
+}
+
+export function formatBookingRequestStatus(status: string) {
+  return bookingRequestStatuses[status]?.label ?? status;
+}
+
+export function getBookingRequestStatusTone(status: string) {
+  return bookingRequestStatuses[status]?.tone ?? 'neutral';
 }
 
 export function formatPlayerStatus(status: string) {
@@ -109,5 +140,21 @@ export function formatDateTime(value: string | null, fallback = 'Не указа
   return new Intl.DateTimeFormat('ru-RU', {
     dateStyle: 'medium',
     timeStyle: 'short',
+  }).format(date);
+}
+
+export function formatDate(value: string | null, fallback = 'Не указано') {
+  if (!value) {
+    return fallback;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('ru-RU', {
+    dateStyle: 'medium',
   }).format(date);
 }
