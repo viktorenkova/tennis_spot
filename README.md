@@ -10,6 +10,8 @@ The repository already contains a runnable vertical path:
 - partner court schedules and date exceptions
 - public venue catalog for verified partners
 - request-based booking flow with availability validation
+- in-app notifications for verification and booking events
+- manual match requests between players
 
 ## Product language
 
@@ -48,6 +50,8 @@ packages/
 - public `GET /venues` catalog for verified and active partner inventory
 - public `GET /booking-requests/options` for подбор подходящих кортов по условиям
 - booking requests with status history, conflict checks and audit logs
+- in-app notifications with unread count and read actions
+- manual player-to-player match requests with accept, decline and cancel actions
 - unified response envelope and unified error envelope
 
 ### Frontend
@@ -55,11 +59,15 @@ packages/
 - `/`
 - `/demo/auth`
 - `/me/player`
+- `/players`
+- `/players/[id]`
+- `/match-requests`
 - `/me/partner`
 - `/me/partner/venues`
 - `/me/partner/verification`
 - `/booking-requests`
 - `/me/partner/booking-requests`
+- `/notifications`
 - `/admin/verification-requests`
 - `/admin/verification-requests/[id]`
 
@@ -198,7 +206,7 @@ Important URLs:
 2. Sign out and sign in as `demo-player`
 3. Open `/me/player` and create the player profile
 4. Open `/booking-requests`
-5. Set search filters: city or district if needed, date, time range, surface and court type
+5. Set search filters: city or district if needed, date, time range, surface, court type and players count
 6. Click `Подобрать варианты`
 7. Choose one of the suitable court cards
 8. Fill the short request form and submit the booking request
@@ -206,6 +214,39 @@ Important URLs:
 11. Open `/me/partner/booking-requests`
 12. Confirm, reject, cancel or complete the request
 13. Sign back in as `demo-player` and verify the updated status
+
+### Notifications flow
+
+1. Complete the booking flow until the player creates a booking request
+2. Sign in as `demo-partner`
+3. Open `/notifications`
+4. Confirm that the partner sees a new booking notification
+5. Open `/me/partner/booking-requests` and confirm the request
+6. Sign in as `demo-player`
+7. Open `/notifications`
+8. Confirm that the player sees the booking confirmation notification
+9. Use `Прочитать` or `Прочитать всё` and confirm that the unread count changes
+
+Verification also creates notifications:
+
+- when a partner submits verification, admins receive `verification_submitted`
+- when an admin approves, rejects or requests corrections, the partner receives the result
+
+### Match request flow
+
+1. Sign in as `demo-player`
+2. Open `/me/player` and create or update the player profile
+3. Sign in as `demo-partner`
+4. Open `/me/player` and create or update a second player profile
+5. Sign back in as `demo-player`
+6. Open `/players`
+7. Choose the second player and open their card
+8. Click `Отправить вызов`
+9. Sign in as `demo-partner`
+10. Open `/match-requests`
+11. Accept or decline the incoming challenge
+12. Sign back in as `demo-player`
+13. Open `/match-requests` or `/notifications` and confirm that the status changed
 
 ### Fast admin flow
 
@@ -292,6 +333,8 @@ curl.exe -X POST "http://localhost:4000/api/v1/partner/venues/<VENUE_ID>/courts"
 
 ### Create court schedule template
 
+`weekday` uses `0-6`: `0` is Sunday, `1` is Monday, `6` is Saturday.
+
 ```powershell
 curl.exe -X POST "http://localhost:4000/api/v1/partner/courts/<COURT_ID>/schedule-templates" `
   -H "Authorization: Bearer <PARTNER_ACCESS_TOKEN>" `
@@ -330,6 +373,12 @@ curl.exe -X POST "http://localhost:4000/api/v1/booking-requests" `
   -d "{\"venueId\":\"<VENUE_ID>\",\"courtId\":\"<COURT_ID>\",\"bookingDate\":\"2026-04-20\",\"timeFrom\":\"18:00\",\"timeTo\":\"19:00\",\"playersCount\":2}"
 ```
 
+### Discover booking options by player requirements
+
+```powershell
+curl.exe "http://localhost:4000/api/v1/booking-requests/options?cityId=<CITY_ID>&districtId=<DISTRICT_ID>&bookingDate=2026-04-20&timeFrom=18:00&timeTo=19:30&surfaceType=hard&courtType=indoor&playersCount=2"
+```
+
 ### List partner booking requests
 
 ```powershell
@@ -346,6 +395,64 @@ curl.exe -X POST "http://localhost:4000/api/v1/partner/booking-requests/<REQUEST
   -d "{\"commentFromPartner\":\"See you on court\"}"
 ```
 
+### List notifications
+
+```powershell
+curl.exe "http://localhost:4000/api/v1/notifications" `
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### Get unread notifications count
+
+```powershell
+curl.exe "http://localhost:4000/api/v1/notifications/unread-count" `
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### Mark notification as read
+
+```powershell
+curl.exe -X POST "http://localhost:4000/api/v1/notifications/<NOTIFICATION_ID>/read" `
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### Mark all notifications as read
+
+```powershell
+curl.exe -X POST "http://localhost:4000/api/v1/notifications/read-all" `
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### List players
+
+```powershell
+curl.exe "http://localhost:4000/api/v1/players" `
+  -H "Authorization: Bearer <PLAYER_ACCESS_TOKEN>"
+```
+
+### Create match request
+
+```powershell
+curl.exe -X POST "http://localhost:4000/api/v1/match-requests" `
+  -H "Authorization: Bearer <PLAYER_ACCESS_TOKEN>" `
+  -H "Content-Type: application/json" `
+  -d "{\"opponentId\":\"<OPPONENT_USER_ID>\",\"proposedDate\":\"2099-04-20\",\"proposedTimeFrom\":\"18:00\",\"proposedTimeTo\":\"19:30\",\"format\":\"singles\",\"message\":\"Сыграем тренировочный сет?\"}"
+```
+
+### List incoming match requests
+
+```powershell
+curl.exe "http://localhost:4000/api/v1/match-requests/incoming" `
+  -H "Authorization: Bearer <PLAYER_ACCESS_TOKEN>"
+```
+
+### Accept match request
+
+```powershell
+curl.exe -X POST "http://localhost:4000/api/v1/match-requests/<MATCH_REQUEST_ID>/accept" `
+  -H "Authorization: Bearer <PLAYER_ACCESS_TOKEN>"
+```
+
 ## Run e2e tests
 
 ```bash
@@ -360,11 +467,13 @@ The e2e suite boots the Nest app over an in-memory Prisma double, so the current
 - schedule layer is template + exceptions + on-demand availability calculation
 - no payments in MVP
 - no realtime lock engine or complex calendar planner
+- notifications are in-app only, without email, push, websocket or event bus
+- match requests are manual challenges, not an automated matchmaking algorithm
 - verification document upload is still demo-oriented metadata storage
 - no public marketplace UI beyond the API-backed catalog checks
 
 ## Next iteration focus
 
 - booking request expiration rules
-- notifications
+- notification links to exact related pages
 - complaints and moderation tooling

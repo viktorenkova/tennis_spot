@@ -39,7 +39,7 @@ export class PlayerService {
     return this.prisma.playerProfile.create({
       data: {
         userId,
-        status: 'draft',
+        status: 'active',
         ...dto,
         visibilitySettings: {
           create: {},

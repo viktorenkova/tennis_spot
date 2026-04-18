@@ -7,6 +7,8 @@ import { CourtScheduleModule } from './modules/court-schedule/court-schedule.mod
 import { configuration, envFilePaths } from './config/configuration';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
+import { MatchRequestsModule } from './modules/match-requests/match-requests.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PartnerModule } from './modules/partner/partner.module';
 import { PlayerModule } from './modules/player/player.module';
 import { ReferenceModule } from './modules/reference/reference.module';
@@ -28,6 +30,8 @@ import { VerificationModule } from './modules/verification/verification.module';
     AdminModule,
     BookingModule,
     CourtScheduleModule,
+    MatchRequestsModule,
+    NotificationsModule,
     UsersModule,
     ReferenceModule,
     PlayerModule,

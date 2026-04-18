@@ -7,13 +7,18 @@ import {
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ListVerificationRequestsDto } from './dto/list-verification-requests.dto';
 
 const REVIEWABLE_STATUSES: VerificationRequestStatus[] = ['submitted', 'in_review'];
 
 @Injectable()
 export class AdminVerificationService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(NotificationsService)
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   getVerificationRequests(query: ListVerificationRequestsDto) {
     return this.prisma.verificationRequest.findMany({
@@ -232,7 +237,60 @@ export class AdminVerificationService {
         },
       });
 
+      await this.notificationsService.createNotification(
+        request.partnerProfile.ownerUserId,
+        this.getReviewNotificationType(params.nextRequestStatus),
+        this.getReviewNotificationTitle(params.nextRequestStatus),
+        this.getReviewNotificationBody(params.nextRequestStatus, params.comment),
+        {
+          type: 'verification_request',
+          id: request.id,
+        },
+        tx,
+      );
+
       return updatedRequest;
     });
+  }
+
+  private getReviewNotificationType(nextStatus: VerificationRequestStatus) {
+    switch (nextStatus) {
+      case 'approved':
+        return 'verification_approved';
+      case 'rejected':
+        return 'verification_rejected';
+      case 'needs_correction':
+        return 'verification_needs_correction';
+      default:
+        return 'verification_submitted';
+    }
+  }
+
+  private getReviewNotificationTitle(nextStatus: VerificationRequestStatus) {
+    switch (nextStatus) {
+      case 'approved':
+        return 'Верификация одобрена';
+      case 'rejected':
+        return 'Верификация отклонена';
+      case 'needs_correction':
+        return 'Нужны уточнения по верификации';
+      default:
+        return 'Статус верификации обновлён';
+    }
+  }
+
+  private getReviewNotificationBody(nextStatus: VerificationRequestStatus, comment?: string) {
+    switch (nextStatus) {
+      case 'approved':
+        return 'Ваш профиль партнёра прошёл проверку и может попадать в публичный каталог.';
+      case 'rejected':
+        return comment ? `Заявка отклонена: ${comment}` : 'Заявка на верификацию отклонена.';
+      case 'needs_correction':
+        return comment
+          ? `Администратор попросил уточнить данные: ${comment}`
+          : 'Администратор попросил уточнить данные по заявке.';
+      default:
+        return 'Статус заявки на верификацию изменился.';
+    }
   }
 }

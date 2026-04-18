@@ -408,8 +408,7 @@ export class CourtAvailabilityService {
   }
 
   private getWeekday(date: Date) {
-    const jsWeekday = date.getUTCDay();
-    return jsWeekday === 0 ? 7 : jsWeekday;
+    return date.getUTCDay();
   }
 
   private parseTimeToMinutes(value: string) {

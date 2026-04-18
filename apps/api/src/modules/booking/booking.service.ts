@@ -1,9 +1,10 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { BookingRequestStatus, Prisma } from '@prisma/client';
+import { BookingRequestStatus, NotificationType, Prisma } from '@prisma/client';
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CourtAvailabilityService } from '../court-schedule/court-availability.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBookingRequestDto } from './dto/create-booking-request.dto';
 import { FindBookingOptionsQueryDto } from './dto/find-booking-options-query.dto';
 
@@ -85,6 +86,8 @@ export class BookingService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(CourtAvailabilityService)
     private readonly courtAvailabilityService: CourtAvailabilityService,
+    @Inject(NotificationsService)
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async findBookingOptions(query: FindBookingOptionsQueryDto) {
@@ -94,6 +97,7 @@ export class BookingService {
 
     this.parseBookingDate(query.bookingDate);
     this.getDurationMinutes(query.timeFrom, query.timeTo);
+    const playersCount = query.playersCount ?? 2;
 
     const venues = await this.prisma.venue.findMany({
       where: {
@@ -176,6 +180,7 @@ export class BookingService {
               timeTo: matchingInterval.timeTo,
               slotDurationMinutes: matchingInterval.slotDurationMinutes,
               price: matchingInterval.price,
+              playersCount,
             },
           };
         }),
@@ -242,6 +247,18 @@ export class BookingService {
           } as Prisma.InputJsonValue,
         },
       });
+
+      await this.notificationsService.createNotification(
+        venue.partnerProfile.ownerUserId,
+        'booking_created',
+        'Новая заявка на бронирование',
+        `Игрок отправил заявку на ${venue.name}, ${court.name}: ${dto.bookingDate} ${dto.timeFrom} - ${dto.timeTo}.`,
+        {
+          type: 'booking_request',
+          id: bookingRequest.id,
+        },
+        tx,
+      );
 
       return tx.bookingRequest.findUnique({
         where: {
@@ -440,6 +457,22 @@ export class BookingService {
         },
       });
 
+      const notification = this.getBookingTransitionNotification(bookingRequest, nextStatus);
+
+      if (notification) {
+        await this.notificationsService.createNotification(
+          notification.userId,
+          notification.type,
+          notification.title,
+          notification.body,
+          {
+            type: 'booking_request',
+            id: bookingRequest.id,
+          },
+          tx,
+        );
+      }
+
       return tx.bookingRequest.findUnique({
         where: {
           id: updatedBookingRequest.id,
@@ -447,6 +480,60 @@ export class BookingService {
         include: bookingDetailsInclude,
       });
     });
+  }
+
+  private getBookingTransitionNotification(
+    bookingRequest: BookingRequestRecord,
+    nextStatus: BookingRequestStatus,
+  ):
+    | {
+        userId: string;
+        type: NotificationType;
+        title: string;
+        body: string;
+      }
+    | null {
+    const bookingDescription = `${this.formatDateForAvailability(bookingRequest.bookingDate)} ${bookingRequest.timeFrom} - ${bookingRequest.timeTo}`;
+
+    switch (nextStatus) {
+      case 'confirmed':
+        return {
+          userId: bookingRequest.playerProfile.userId,
+          type: 'booking_confirmed',
+          title: 'Заявка на бронирование подтверждена',
+          body: `Партнёр подтвердил вашу заявку на ${bookingDescription}.`,
+        };
+      case 'rejected':
+        return {
+          userId: bookingRequest.playerProfile.userId,
+          type: 'booking_rejected',
+          title: 'Заявка на бронирование отклонена',
+          body: `Партнёр отклонил вашу заявку на ${bookingDescription}.`,
+        };
+      case 'cancelled_by_player':
+        return {
+          userId: bookingRequest.partnerProfile.ownerUserId,
+          type: 'booking_cancelled',
+          title: 'Заявка на бронирование отменена',
+          body: `Игрок отменил заявку на ${bookingDescription}.`,
+        };
+      case 'cancelled_by_partner':
+        return {
+          userId: bookingRequest.playerProfile.userId,
+          type: 'booking_cancelled',
+          title: 'Заявка на бронирование отменена',
+          body: `Партнёр отменил заявку на ${bookingDescription}.`,
+        };
+      case 'completed':
+        return {
+          userId: bookingRequest.playerProfile.userId,
+          type: 'booking_completed',
+          title: 'Бронирование завершено',
+          body: `Партнёр отметил заявку на ${bookingDescription} как завершённую.`,
+        };
+      default:
+        return null;
+    }
   }
 
   private ensureTransitionAllowed(currentStatus: BookingRequestStatus, nextStatus: BookingRequestStatus) {

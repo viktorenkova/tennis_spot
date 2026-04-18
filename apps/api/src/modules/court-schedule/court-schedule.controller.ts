@@ -61,6 +61,17 @@ export class CourtScheduleController {
     return this.courtScheduleService.updateTemplate(user.sub, courtId, templateId, dto);
   }
 
+  @Patch('schedule-templates/:templateId')
+  @ApiBearerAuth()
+  @UseGuards(AccessTokenGuard)
+  updateTemplateById(
+    @CurrentUser() user: JwtPayload,
+    @Param('templateId') templateId: string,
+    @Body() dto: UpdateCourtScheduleTemplateDto,
+  ) {
+    return this.courtScheduleService.updateTemplateById(user.sub, templateId, dto);
+  }
+
   @Delete('partner/courts/:courtId/schedule-templates/:templateId')
   @ApiBearerAuth()
   @UseGuards(AccessTokenGuard)
@@ -70,6 +81,16 @@ export class CourtScheduleController {
     @Param('templateId') templateId: string,
   ) {
     return this.courtScheduleService.deleteTemplate(user.sub, courtId, templateId);
+  }
+
+  @Delete('schedule-templates/:templateId')
+  @ApiBearerAuth()
+  @UseGuards(AccessTokenGuard)
+  deleteTemplateById(
+    @CurrentUser() user: JwtPayload,
+    @Param('templateId') templateId: string,
+  ) {
+    return this.courtScheduleService.deleteTemplateById(user.sub, templateId);
   }
 
   @Post('partner/courts/:courtId/schedule-exceptions')
@@ -102,6 +123,17 @@ export class CourtScheduleController {
     return this.courtScheduleService.updateException(user.sub, courtId, exceptionId, dto);
   }
 
+  @Patch('schedule-exceptions/:exceptionId')
+  @ApiBearerAuth()
+  @UseGuards(AccessTokenGuard)
+  updateExceptionById(
+    @CurrentUser() user: JwtPayload,
+    @Param('exceptionId') exceptionId: string,
+    @Body() dto: UpdateCourtScheduleExceptionDto,
+  ) {
+    return this.courtScheduleService.updateExceptionById(user.sub, exceptionId, dto);
+  }
+
   @Delete('partner/courts/:courtId/schedule-exceptions/:exceptionId')
   @ApiBearerAuth()
   @UseGuards(AccessTokenGuard)
@@ -111,6 +143,16 @@ export class CourtScheduleController {
     @Param('exceptionId') exceptionId: string,
   ) {
     return this.courtScheduleService.deleteException(user.sub, courtId, exceptionId);
+  }
+
+  @Delete('schedule-exceptions/:exceptionId')
+  @ApiBearerAuth()
+  @UseGuards(AccessTokenGuard)
+  deleteExceptionById(
+    @CurrentUser() user: JwtPayload,
+    @Param('exceptionId') exceptionId: string,
+  ) {
+    return this.courtScheduleService.deleteExceptionById(user.sub, exceptionId);
   }
 
   @Get('courts/:courtId/availability')

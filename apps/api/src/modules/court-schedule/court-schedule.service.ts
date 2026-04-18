@@ -65,6 +65,28 @@ export class CourtScheduleService {
     dto: UpdateCourtScheduleTemplateDto,
   ) {
     const template = await this.getOwnedTemplateOrThrow(userId, courtId, templateId);
+    return this.updateTemplateRecord(userId, template, dto);
+  }
+
+  async updateTemplateById(
+    userId: string,
+    templateId: string,
+    dto: UpdateCourtScheduleTemplateDto,
+  ) {
+    const template = await this.getOwnedTemplateByIdOrThrow(userId, templateId);
+    return this.updateTemplateRecord(userId, template, dto);
+  }
+
+  private async updateTemplateRecord(
+    userId: string,
+    template: {
+      id: string;
+      courtId: string;
+      timeFrom: string;
+      timeTo: string;
+    },
+    dto: UpdateCourtScheduleTemplateDto,
+  ) {
     const nextTimeFrom = dto.timeFrom ?? template.timeFrom;
     const nextTimeTo = dto.timeTo ?? template.timeTo;
     this.validateTimeRange(nextTimeFrom, nextTimeTo, 'template');
@@ -88,10 +110,10 @@ export class CourtScheduleService {
         data: {
           actorUserId: userId,
           action: 'court_schedule_template.updated',
-          targetEntity: 'court_schedule_template',
-          targetId: updated.id,
-          metadata: {
-            courtId,
+            targetEntity: 'court_schedule_template',
+            targetId: updated.id,
+            metadata: {
+            courtId: template.courtId,
           } as Prisma.InputJsonValue,
         },
       });
@@ -102,6 +124,21 @@ export class CourtScheduleService {
 
   async deleteTemplate(userId: string, courtId: string, templateId: string) {
     const template = await this.getOwnedTemplateOrThrow(userId, courtId, templateId);
+    return this.deleteTemplateRecord(userId, template);
+  }
+
+  async deleteTemplateById(userId: string, templateId: string) {
+    const template = await this.getOwnedTemplateByIdOrThrow(userId, templateId);
+    return this.deleteTemplateRecord(userId, template);
+  }
+
+  private async deleteTemplateRecord(
+    userId: string,
+    template: {
+      id: string;
+      courtId: string;
+    },
+  ) {
 
     return this.prisma.$transaction(async (tx) => {
       await tx.courtScheduleTemplate.delete({
@@ -114,10 +151,10 @@ export class CourtScheduleService {
         data: {
           actorUserId: userId,
           action: 'court_schedule_template.deleted',
-          targetEntity: 'court_schedule_template',
-          targetId: template.id,
-          metadata: {
-            courtId,
+            targetEntity: 'court_schedule_template',
+            targetId: template.id,
+            metadata: {
+            courtId: template.courtId,
           } as Prisma.InputJsonValue,
         },
       });
@@ -181,6 +218,30 @@ export class CourtScheduleService {
     dto: UpdateCourtScheduleExceptionDto,
   ) {
     const exception = await this.getOwnedExceptionOrThrow(userId, courtId, exceptionId);
+    return this.updateExceptionRecord(userId, exception, dto);
+  }
+
+  async updateExceptionById(
+    userId: string,
+    exceptionId: string,
+    dto: UpdateCourtScheduleExceptionDto,
+  ) {
+    const exception = await this.getOwnedExceptionByIdOrThrow(userId, exceptionId);
+    return this.updateExceptionRecord(userId, exception, dto);
+  }
+
+  private async updateExceptionRecord(
+    userId: string,
+    exception: {
+      id: string;
+      courtId: string;
+      exceptionType: ScheduleExceptionTypeValue;
+      timeFrom: string | null;
+      timeTo: string | null;
+      customPrice: Prisma.Decimal | number | null;
+    },
+    dto: UpdateCourtScheduleExceptionDto,
+  ) {
     const nextExceptionType = dto.exceptionType ?? exception.exceptionType;
     const nextTimeFrom = dto.timeFrom === undefined ? exception.timeFrom : dto.timeFrom;
     const nextTimeTo = dto.timeTo === undefined ? exception.timeTo : dto.timeTo;
@@ -215,10 +276,10 @@ export class CourtScheduleService {
         data: {
           actorUserId: userId,
           action: 'court_schedule_exception.updated',
-          targetEntity: 'court_schedule_exception',
-          targetId: updated.id,
-          metadata: {
-            courtId,
+            targetEntity: 'court_schedule_exception',
+            targetId: updated.id,
+            metadata: {
+            courtId: exception.courtId,
           } as Prisma.InputJsonValue,
         },
       });
@@ -229,6 +290,21 @@ export class CourtScheduleService {
 
   async deleteException(userId: string, courtId: string, exceptionId: string) {
     const exception = await this.getOwnedExceptionOrThrow(userId, courtId, exceptionId);
+    return this.deleteExceptionRecord(userId, exception);
+  }
+
+  async deleteExceptionById(userId: string, exceptionId: string) {
+    const exception = await this.getOwnedExceptionByIdOrThrow(userId, exceptionId);
+    return this.deleteExceptionRecord(userId, exception);
+  }
+
+  private async deleteExceptionRecord(
+    userId: string,
+    exception: {
+      id: string;
+      courtId: string;
+    },
+  ) {
 
     return this.prisma.$transaction(async (tx) => {
       await tx.courtScheduleException.delete({
@@ -241,10 +317,10 @@ export class CourtScheduleService {
         data: {
           actorUserId: userId,
           action: 'court_schedule_exception.deleted',
-          targetEntity: 'court_schedule_exception',
-          targetId: exception.id,
-          metadata: {
-            courtId,
+            targetEntity: 'court_schedule_exception',
+            targetId: exception.id,
+            metadata: {
+            courtId: exception.courtId,
           } as Prisma.InputJsonValue,
         },
       });
@@ -304,6 +380,24 @@ export class CourtScheduleService {
     return template;
   }
 
+  private async getOwnedTemplateByIdOrThrow(userId: string, templateId: string) {
+    const template = await this.prisma.courtScheduleTemplate.findFirst({
+      where: {
+        id: templateId,
+      },
+    });
+
+    if (!template) {
+      throw new AppError(HttpStatus.NOT_FOUND, {
+        code: ERROR_CODES.courtScheduleTemplateNotFound,
+        message: 'Шаблон расписания корта не найден.',
+      });
+    }
+
+    await this.getOwnedCourtOrThrow(userId, template.courtId);
+    return template;
+  }
+
   private async getOwnedExceptionOrThrow(userId: string, courtId: string, exceptionId: string) {
     await this.getOwnedCourtOrThrow(userId, courtId);
 
@@ -321,6 +415,24 @@ export class CourtScheduleService {
       });
     }
 
+    return exception;
+  }
+
+  private async getOwnedExceptionByIdOrThrow(userId: string, exceptionId: string) {
+    const exception = await this.prisma.courtScheduleException.findFirst({
+      where: {
+        id: exceptionId,
+      },
+    });
+
+    if (!exception) {
+      throw new AppError(HttpStatus.NOT_FOUND, {
+        code: ERROR_CODES.courtScheduleExceptionNotFound,
+        message: 'Исключение расписания корта не найдено.',
+      });
+    }
+
+    await this.getOwnedCourtOrThrow(userId, exception.courtId);
     return exception;
   }
 

@@ -572,6 +572,24 @@ a:focus-visible {
   gap: 6px;
 }
 
+.list-row-highlight {
+  border-color: rgba(166, 105, 36, 0.38);
+  background: rgba(248, 223, 179, 0.32);
+}
+
+.section-heading,
+.row-title,
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.row-actions {
+  justify-content: flex-end;
+}
+
 @media (max-width: 1024px) {
   .app-shell {
     grid-template-columns: 1fr;

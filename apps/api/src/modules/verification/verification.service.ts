@@ -8,13 +8,18 @@ import {
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AddVerificationDocumentDto } from './dto/add-verification-document.dto';
 
 const ACTIVE_REVIEW_STATUSES: VerificationRequestStatus[] = ['submitted', 'in_review'];
 
 @Injectable()
 export class VerificationService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(NotificationsService)
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async addDocument(userId: string, dto: AddVerificationDocumentDto) {
     const partnerProfile = await this.getPartnerProfileOrThrow(userId);
@@ -94,6 +99,19 @@ export class VerificationService {
           } as Prisma.InputJsonValue,
         },
       });
+
+      const adminUserIds = await this.notificationsService.getAdminUserIds(tx);
+      await this.notificationsService.createNotificationsForUsers(
+        adminUserIds,
+        'verification_submitted',
+        'Новая заявка на верификацию',
+        `${partnerProfile.legalName} отправил заявку на проверку партнёра.`,
+        {
+          type: 'verification_request',
+          id: request.id,
+        },
+        tx,
+      );
 
       return updatedRequest;
     });

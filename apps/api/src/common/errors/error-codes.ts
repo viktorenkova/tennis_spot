@@ -25,4 +25,9 @@ export const ERROR_CODES = {
   bookingRequestInvalidTransition: 'BOOKING_REQUEST_INVALID_TRANSITION',
   bookingRequestInvalidVenueCourt: 'BOOKING_REQUEST_INVALID_VENUE_COURT',
   bookingRequestUnavailableCourt: 'BOOKING_REQUEST_UNAVAILABLE_COURT',
+  notificationNotFound: 'NOTIFICATION_NOT_FOUND',
+  matchRequestNotFound: 'MATCH_REQUEST_NOT_FOUND',
+  matchRequestInvalidTransition: 'MATCH_REQUEST_INVALID_TRANSITION',
+  matchRequestInvalidOpponent: 'MATCH_REQUEST_INVALID_OPPONENT',
+  matchRequestInvalidSchedule: 'MATCH_REQUEST_INVALID_SCHEDULE',
 } as const;

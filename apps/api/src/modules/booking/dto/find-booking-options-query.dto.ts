@@ -1,5 +1,16 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsIn, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class FindBookingOptionsQueryDto {
   @ApiPropertyOptional()
@@ -43,4 +54,15 @@ export class FindBookingOptionsQueryDto {
     message: 'Тип корта должен быть одним из значений: any, indoor, outdoor.',
   })
   courtType?: 'any' | 'indoor' | 'outdoor';
+
+  @ApiPropertyOptional({
+    minimum: 1,
+    maximum: 8,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'Количество игроков должно быть целым числом.' })
+  @Min(1, { message: 'Количество игроков должно быть не меньше 1.' })
+  @Max(8, { message: 'Количество игроков должно быть не больше 8.' })
+  playersCount?: number;
 }

@@ -50,11 +50,45 @@ enum BookingRequestStatus {
   completed
 }
 
+enum MatchRequestStatus {
+  pending
+  accepted
+  declined
+  cancelled
+}
+
+enum MatchRequestFormat {
+  singles
+  doubles
+}
+
 enum ScheduleExceptionType {
   closed
   custom_hours
   blocked
   custom_price
+}
+
+enum NotificationType {
+  verification_submitted
+  verification_approved
+  verification_rejected
+  verification_needs_correction
+  booking_created
+  booking_confirmed
+  booking_rejected
+  booking_cancelled
+  booking_completed
+  match_request_created
+  match_request_accepted
+  match_request_declined
+  match_request_cancelled
+}
+
+enum NotificationRelatedEntityType {
+  verification_request
+  booking_request
+  match_request
 }
 
 enum RoleKey {
@@ -89,6 +123,9 @@ model User {
   uploadedFiles  File[]
   auditLogs      AuditLog[]
   bookingStatusChanges BookingRequestStatusHistory[]
+  notifications  Notification[]
+  initiatedMatchRequests MatchRequest[] @relation("match_request_initiator")
+  receivedMatchRequests  MatchRequest[] @relation("match_request_opponent")
 
   @@map("users")
 }
@@ -493,6 +530,26 @@ model BookingRequestStatusHistory {
   @@map("booking_request_status_history")
 }
 
+model MatchRequest {
+  id               String             @id @default(uuid()) @db.Uuid
+  initiatorId      String             @map("initiator_id") @db.Uuid
+  opponentId       String             @map("opponent_id") @db.Uuid
+  status           MatchRequestStatus @default(pending)
+  proposedDate     DateTime           @map("proposed_date") @db.Date
+  proposedTimeFrom String             @map("proposed_time_from")
+  proposedTimeTo   String             @map("proposed_time_to")
+  format           MatchRequestFormat
+  message          String?
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  initiator        User               @relation("match_request_initiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  opponent         User               @relation("match_request_opponent", fields: [opponentId], references: [id], onDelete: Cascade)
+
+  @@index([initiatorId, status, createdAt])
+  @@index([opponentId, status, createdAt])
+  @@map("match_requests")
+}
+
 model CourtScheduleTemplate {
   id                  String   @id @default(uuid()) @db.Uuid
   courtId             String   @map("court_id") @db.Uuid
@@ -525,6 +582,24 @@ model CourtScheduleException {
 
   @@index([courtId, date])
   @@map("court_schedule_exceptions")
+}
+
+model Notification {
+  id                String                         @id @default(uuid()) @db.Uuid
+  userId            String                         @map("user_id") @db.Uuid
+  type              NotificationType
+  title             String
+  body              String
+  relatedEntityType NotificationRelatedEntityType? @map("related_entity_type")
+  relatedEntityId   String?                        @map("related_entity_id") @db.Uuid
+  isRead            Boolean                        @default(false) @map("is_read")
+  createdAt         DateTime                       @default(now()) @map("created_at")
+  readAt            DateTime?                      @map("read_at")
+  user              User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([relatedEntityType, relatedEntityId])
+  @@map("notifications")
 }
 
 model AuditLog {

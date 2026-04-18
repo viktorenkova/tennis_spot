@@ -31,6 +31,18 @@ const bookingRequestStatuses: Record<string, { label: string; tone: StatusTone }
   completed: { label: 'Завершена', tone: 'success' },
 };
 
+const matchRequestStatuses: Record<string, { label: string; tone: StatusTone }> = {
+  pending: { label: 'Ожидает ответа', tone: 'warning' },
+  accepted: { label: 'Принят', tone: 'success' },
+  declined: { label: 'Отклонён', tone: 'danger' },
+  cancelled: { label: 'Отменён', tone: 'neutral' },
+};
+
+const matchRequestFormats: Record<string, string> = {
+  singles: 'Одиночная игра',
+  doubles: 'Парная игра',
+};
+
 const playerStatuses: Record<string, { label: string; tone: StatusTone }> = {
   draft: { label: 'Черновик', tone: 'neutral' },
   active: { label: 'Активен', tone: 'success' },
@@ -100,6 +112,18 @@ export function formatBookingRequestStatus(status: string) {
 
 export function getBookingRequestStatusTone(status: string) {
   return bookingRequestStatuses[status]?.tone ?? 'neutral';
+}
+
+export function formatMatchRequestStatus(status: string) {
+  return matchRequestStatuses[status]?.label ?? status;
+}
+
+export function getMatchRequestStatusTone(status: string) {
+  return matchRequestStatuses[status]?.tone ?? 'neutral';
+}
+
+export function formatMatchRequestFormat(format: string) {
+  return matchRequestFormats[format] ?? format;
 }
 
 export function formatPlayerStatus(status: string) {

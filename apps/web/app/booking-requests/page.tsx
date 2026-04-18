@@ -105,6 +105,7 @@ type BookingOption = {
     timeTo: string;
     slotDurationMinutes: number;
     price: number | string | null;
+    playersCount: number;
   };
 };
 
@@ -116,6 +117,7 @@ type SearchForm = {
   timeTo: string;
   surfaceType: string;
   courtType: 'any' | 'indoor' | 'outdoor';
+  playersCount: string;
 };
 
 type RequestForm = {
@@ -131,6 +133,7 @@ const initialSearchForm: SearchForm = {
   timeTo: '19:30',
   surfaceType: '',
   courtType: 'any',
+  playersCount: '2',
 };
 
 const initialRequestForm: RequestForm = {
@@ -174,6 +177,11 @@ function formatPrice(price: number | string | null) {
 
 function canCancelBooking(status: string) {
   return status === 'pending' || status === 'confirmed';
+}
+
+function isValidPlayersCount(value: string) {
+  const playersCount = Number(value || 0);
+  return Number.isInteger(playersCount) && playersCount >= 1 && playersCount <= 8;
 }
 
 export default function BookingRequestsPage() {
@@ -322,6 +330,12 @@ export default function BookingRequestsPage() {
       return;
     }
 
+    if (!isValidPlayersCount(searchForm.playersCount)) {
+      setError('Укажите количество игроков от 1 до 8, чтобы подобрать варианты.');
+      setHasSearched(false);
+      return;
+    }
+
     setSearchLoading(true);
     setMessage(null);
     setError(null);
@@ -348,6 +362,8 @@ export default function BookingRequestsPage() {
     if (searchForm.courtType !== 'any') {
       params.set('courtType', searchForm.courtType);
     }
+
+    params.set('playersCount', searchForm.playersCount);
 
     const response = await apiRequest<BookingOption[]>(`/booking-requests/options?${params.toString()}`);
 
@@ -376,18 +392,33 @@ export default function BookingRequestsPage() {
     setSearchLoading(false);
   };
 
+  const selectOption = (option: BookingOption) => {
+    setSelectedOption(option);
+    setRequestForm((current) => ({
+      ...current,
+      playersCount: searchForm.playersCount,
+    }));
+    setMessage('Вариант выбран. Проверьте короткую форму заявки и отправьте её партнёру.');
+    setError(null);
+  };
+
   const saveBookingRequest = async () => {
-    if (!session || !selectedOption) {
+    if (!session) {
+      setError('Сначала войдите через демо-вход.');
       return;
     }
 
-    const playersCount = Number(requestForm.playersCount || 0);
+    if (!selectedOption) {
+      setError('Сначала выберите подходящий вариант корта из списка.');
+      return;
+    }
 
-    if (!Number.isInteger(playersCount) || playersCount < 1 || playersCount > 8) {
+    if (!isValidPlayersCount(requestForm.playersCount)) {
       setError('Укажите корректное количество игроков от 1 до 8.');
       return;
     }
 
+    const playersCount = Number(requestForm.playersCount);
     setLoading(true);
     setMessage(null);
     setError(null);
@@ -447,7 +478,12 @@ export default function BookingRequestsPage() {
     await Promise.all([loadBaseData(), hasSearched ? runSearch() : Promise.resolve()]);
   };
 
-  const searchReady = Boolean(searchForm.bookingDate && searchForm.timeFrom && searchForm.timeTo);
+  const searchReady = Boolean(
+    searchForm.bookingDate &&
+      searchForm.timeFrom &&
+      searchForm.timeTo &&
+      isValidPlayersCount(searchForm.playersCount),
+  );
 
   return (
     <DemoShell
@@ -472,6 +508,9 @@ export default function BookingRequestsPage() {
       <div className="split-grid">
         <Card accent>
           <h3>Подобрать корт</h3>
+          <p className="muted">
+            Укажите дату, время и параметры корта — мы покажем подходящие варианты.
+          </p>
           <div className="form-stack">
             <label className="field">
               <span>Город</span>
@@ -580,6 +619,18 @@ export default function BookingRequestsPage() {
                 <option value="indoor">Крытый</option>
                 <option value="outdoor">Открытый</option>
               </select>
+            </label>
+
+            <label className="field">
+              <span>Количество игроков</span>
+              <input
+                type="number"
+                min="1"
+                max="8"
+                value={searchForm.playersCount}
+                onChange={(event) => updateSearchForm('playersCount', event.target.value)}
+                disabled={searchLoading || loading}
+              />
             </label>
           </div>
 
@@ -709,6 +760,8 @@ export default function BookingRequestsPage() {
           </Notice>
         ) : null}
 
+        {searchLoading ? <Notice>Ищем корты, которые подходят по времени, району и расписанию...</Notice> : null}
+
         {options.length ? (
           <div className="list-stack">
             {options.map((option) => {
@@ -717,7 +770,10 @@ export default function BookingRequestsPage() {
                 selectedOption?.court.id === option.court.id;
 
               return (
-                <div key={`${option.venue.id}-${option.court.id}`} className="list-row list-row-detailed">
+                <div
+                  key={`${option.venue.id}-${option.court.id}`}
+                  className={`list-row list-row-detailed${isSelected ? ' list-row-highlight' : ''}`}
+                >
                   <div>
                     <strong>
                       {option.venue.name} / {option.court.name}
@@ -731,18 +787,20 @@ export default function BookingRequestsPage() {
                       {formatPrice(option.availableInterval.price)}
                     </span>
                     <span>
-                      Партнёр: {option.partnerProfile.brandName || option.partnerProfile.legalName} •
-                      Активных кортов на площадке: {option.venue.activeCourtsCount}
+                      Игроков в заявке: {option.availableInterval.playersCount} • Партнёр:{' '}
+                      {option.partnerProfile.brandName || option.partnerProfile.legalName} • Активных
+                      кортов на площадке: {option.venue.activeCourtsCount}
                     </span>
                   </div>
                   <div className="button-row">
+                    <StatusBadge tone="success">Доступен</StatusBadge>
                     {option.court.hasLighting ? (
                       <StatusBadge tone="success">С освещением</StatusBadge>
                     ) : null}
                     <button
                       type="button"
                       className={isSelected ? 'primary-button' : 'secondary-button'}
-                      onClick={() => setSelectedOption(option)}
+                      onClick={() => selectOption(option)}
                     >
                       {isSelected ? 'Выбрано' : 'Выбрать'}
                     </button>

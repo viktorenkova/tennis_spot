@@ -11,12 +11,15 @@ const navigation = [
     items: [
       { href: '/', label: 'Главная' },
       { href: '/demo/auth', label: 'Вход в демо' },
+      { href: '/notifications', label: 'Уведомления' },
     ],
   },
   {
     title: 'Сценарий игрока',
     items: [
       { href: '/me/player', label: 'Профиль игрока' },
+      { href: '/players', label: 'Каталог игроков' },
+      { href: '/match-requests', label: 'Вызовы на игру' },
       { href: '/booking-requests', label: 'Заявки на бронь' },
     ],
   },

@@ -27,6 +27,23 @@ type BookingRequestStatus =
   | 'expired'
   | 'completed';
 type ScheduleExceptionType = 'closed' | 'custom_hours' | 'blocked' | 'custom_price';
+type MatchRequestStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
+type MatchRequestFormat = 'singles' | 'doubles';
+type NotificationType =
+  | 'verification_submitted'
+  | 'verification_approved'
+  | 'verification_rejected'
+  | 'verification_needs_correction'
+  | 'booking_created'
+  | 'booking_confirmed'
+  | 'booking_rejected'
+  | 'booking_cancelled'
+  | 'booking_completed'
+  | 'match_request_created'
+  | 'match_request_accepted'
+  | 'match_request_declined'
+  | 'match_request_cancelled';
+type NotificationRelatedEntityType = 'verification_request' | 'booking_request' | 'match_request';
 
 type UserRecord = {
   id: string;
@@ -269,6 +286,20 @@ type BookingRequestStatusHistoryRecord = {
   createdAt: Date;
 };
 
+type MatchRequestRecord = {
+  id: string;
+  initiatorId: string;
+  opponentId: string;
+  status: MatchRequestStatus;
+  proposedDate: Date;
+  proposedTimeFrom: string;
+  proposedTimeTo: string;
+  format: MatchRequestFormat;
+  message: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type CourtScheduleTemplateRecord = {
   id: string;
   courtId: string;
@@ -306,6 +337,19 @@ type AuditLogRecord = {
   createdAt: Date;
 };
 
+type NotificationRecord = {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  relatedEntityType: NotificationRelatedEntityType | null;
+  relatedEntityId: string | null;
+  isRead: boolean;
+  createdAt: Date;
+  readAt: Date | null;
+};
+
 export class InMemoryPrismaService {
   private users: UserRecord[] = [];
   private roles: RoleRecord[] = [];
@@ -329,9 +373,11 @@ export class InMemoryPrismaService {
   private verificationDocuments: VerificationDocumentRecord[] = [];
   private bookingRequests: BookingRequestRecord[] = [];
   private bookingRequestStatusHistoryEntries: BookingRequestStatusHistoryRecord[] = [];
+  private matchRequests: MatchRequestRecord[] = [];
   private courtScheduleTemplates: CourtScheduleTemplateRecord[] = [];
   private courtScheduleExceptions: CourtScheduleExceptionRecord[] = [];
   private auditLogs: AuditLogRecord[] = [];
+  private notifications: NotificationRecord[] = [];
 
   constructor() {
     this.seed();
@@ -361,6 +407,7 @@ export class InMemoryPrismaService {
 
   user: any = {
     findUnique: async (_args: any) => null,
+    findMany: async (_args: any) => [],
     create: async (_args: any) => null,
     upsert: async (_args: any) => null,
   };
@@ -471,9 +518,26 @@ export class InMemoryPrismaService {
     findMany: async (_args: any) => [],
   };
 
+  matchRequest: any = {
+    create: async (_args: any) => null,
+    findMany: async (_args: any) => [],
+    findFirst: async (_args: any) => null,
+    findUnique: async (_args: any) => null,
+    update: async (_args: any) => null,
+  };
+
   auditLog: any = {
     create: async (_args: any) => null,
     findMany: async (_args: any) => [],
+  };
+
+  notification: any = {
+    create: async (_args: any) => null,
+    findMany: async (_args: any) => [],
+    findFirst: async (_args: any) => null,
+    update: async (_args: any) => null,
+    updateMany: async (_args: any) => ({ count: 0 }),
+    count: async (_args: any) => 0,
   };
 
   file: any = {
@@ -780,6 +844,28 @@ export class InMemoryPrismaService {
       return this.withUserIncludes(user, include);
     };
 
+    this.user.findMany = async ({ where, select }: any = {}) => {
+      let items = [...this.users];
+
+      if (where?.roles?.some?.role?.key?.in) {
+        const roleKeys = where.roles.some.role.key.in as RoleKey[];
+        const roleIds = this.roles
+          .filter((role) => roleKeys.includes(role.key))
+          .map((role) => role.id);
+        const userIds = this.userRoles
+          .filter((userRole) => roleIds.includes(userRole.roleId))
+          .map((userRole) => userRole.userId);
+
+        items = items.filter((user) => userIds.includes(user.id));
+      }
+
+      if (select?.id) {
+        return items.map((user) => ({ id: user.id }));
+      }
+
+      return items;
+    };
+
     this.user.create = async ({ data, include }: any) => {
       const user: UserRecord = {
         id: randomUUID(),
@@ -1051,6 +1137,10 @@ export class InMemoryPrismaService {
     this.playerProfile.findFirst = async ({ where, include }: any) => {
       const profile =
         this.playerProfiles.find((item) => {
+          if (where.userId && item.userId !== where.userId) {
+            return false;
+          }
+
           if (where.id && item.id !== where.id) {
             return false;
           }
@@ -1059,14 +1149,51 @@ export class InMemoryPrismaService {
             return false;
           }
 
+          if (where.user?.is?.status) {
+            const user = this.users.find((candidate) => candidate.id === item.userId);
+
+            if (user?.status !== where.user.is.status) {
+              return false;
+            }
+          }
+
           return true;
         }) ?? null;
 
       return profile ? this.withPlayerProfileIncludes(profile, include) : null;
     };
 
-    this.playerProfile.findMany = async () =>
-      this.playerProfiles.map((profile) => this.withPlayerProfileIncludes(profile, undefined));
+    this.playerProfile.findMany = async ({ where, include, orderBy }: any = {}) => {
+      let items = [...this.playerProfiles];
+
+      if (where?.status) {
+        items = items.filter((profile) => profile.status === where.status);
+      }
+
+      if (where?.cityId) {
+        items = items.filter((profile) => profile.cityId === where.cityId);
+      }
+
+      if (where?.districtId) {
+        items = items.filter((profile) => profile.districtId === where.districtId);
+      }
+
+      if (where?.visibilitySettings?.is?.profileVisibleToAuthenticated === true) {
+        items = items.filter((profile) => {
+          const visibility = this.playerVisibilitySettings.find(
+            (setting) => setting.playerProfileId === profile.id,
+          );
+
+          return visibility?.profileVisibleToAuthenticated === true;
+        });
+      }
+
+      if (orderBy?.createdAt === 'desc') {
+        items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+
+      return items.map((profile) => this.withPlayerProfileIncludes(profile, include));
+    };
 
     this.playerVisibilitySetting.upsert = async ({ where, update, create }: any) => {
       const existing = this.playerVisibilitySettings.find(
@@ -1438,7 +1565,7 @@ export class InMemoryPrismaService {
         items = items.filter((template) => template.courtId === where.courtId);
       }
 
-      if (where?.weekday) {
+      if (typeof where?.weekday === 'number') {
         items = items.filter((template) => template.weekday === where.weekday);
       }
 
@@ -1474,7 +1601,11 @@ export class InMemoryPrismaService {
         return null;
       }
 
-      Object.assign(template, data, { updatedAt: new Date() });
+      const nextData = Object.fromEntries(
+        Object.entries(data).filter(([, value]) => value !== undefined),
+      );
+
+      Object.assign(template, nextData, { updatedAt: new Date() });
       return template;
     };
 
@@ -1561,7 +1692,11 @@ export class InMemoryPrismaService {
         return null;
       }
 
-      Object.assign(exception, data, { updatedAt: new Date() });
+      const nextData = Object.fromEntries(
+        Object.entries(data).filter(([, value]) => value !== undefined),
+      );
+
+      Object.assign(exception, nextData, { updatedAt: new Date() });
       return exception;
     };
 
@@ -1710,6 +1845,72 @@ export class InMemoryPrismaService {
       }));
     };
 
+    this.matchRequest.create = async ({ data, include }: any) => {
+      const matchRequest: MatchRequestRecord = {
+        id: randomUUID(),
+        initiatorId: data.initiatorId,
+        opponentId: data.opponentId,
+        status: data.status ?? 'pending',
+        proposedDate: data.proposedDate,
+        proposedTimeFrom: data.proposedTimeFrom,
+        proposedTimeTo: data.proposedTimeTo,
+        format: data.format,
+        message: data.message ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      this.matchRequests.push(matchRequest);
+      return this.withMatchRequestIncludes(matchRequest, include);
+    };
+
+    this.matchRequest.findMany = async ({ where, include, orderBy }: any = {}) => {
+      let items = [...this.matchRequests];
+
+      if (where?.id) {
+        items = items.filter((matchRequest) => matchRequest.id === where.id);
+      }
+
+      if (where?.initiatorId) {
+        items = items.filter((matchRequest) => matchRequest.initiatorId === where.initiatorId);
+      }
+
+      if (where?.opponentId) {
+        items = items.filter((matchRequest) => matchRequest.opponentId === where.opponentId);
+      }
+
+      if (where?.status) {
+        items = items.filter((matchRequest) => matchRequest.status === where.status);
+      }
+
+      if (orderBy?.createdAt === 'desc') {
+        items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+
+      return items.map((matchRequest) => this.withMatchRequestIncludes(matchRequest, include));
+    };
+
+    this.matchRequest.findFirst = async ({ where, include }: any = {}) => {
+      const items = await this.matchRequest.findMany({ where, include });
+      return items[0] ?? null;
+    };
+
+    this.matchRequest.findUnique = async ({ where, include }: any) => {
+      const matchRequest = this.matchRequests.find((item) => item.id === where.id) ?? null;
+      return matchRequest ? this.withMatchRequestIncludes(matchRequest, include) : null;
+    };
+
+    this.matchRequest.update = async ({ where, data, include }: any) => {
+      const matchRequest = this.matchRequests.find((item) => item.id === where.id) ?? null;
+
+      if (!matchRequest) {
+        return null;
+      }
+
+      Object.assign(matchRequest, data, { updatedAt: new Date() });
+      return this.withMatchRequestIncludes(matchRequest, include);
+    };
+
     this.verificationRequest.findFirst = async ({ where, orderBy, include }: any) => {
       let items = this.verificationRequests.filter((request) => {
         if (where.partnerProfileId && request.partnerProfileId !== where.partnerProfileId) {
@@ -1846,6 +2047,88 @@ export class InMemoryPrismaService {
             ? this.users.find((user) => user.id === item.actorUserId) ?? null
             : null,
         }));
+
+    this.notification.create = async ({ data }: any) => {
+      const notification: NotificationRecord = {
+        id: randomUUID(),
+        userId: data.userId,
+        type: data.type,
+        title: data.title,
+        body: data.body,
+        relatedEntityType: data.relatedEntityType ?? null,
+        relatedEntityId: data.relatedEntityId ?? null,
+        isRead: data.isRead ?? false,
+        createdAt: new Date(),
+        readAt: data.readAt ?? null,
+      };
+
+      this.notifications.push(notification);
+      return notification;
+    };
+
+    this.notification.findMany = async ({ where, orderBy }: any = {}) => {
+      let items = [...this.notifications];
+
+      if (where?.userId) {
+        items = items.filter((notification) => notification.userId === where.userId);
+      }
+
+      if (typeof where?.isRead === 'boolean') {
+        items = items.filter((notification) => notification.isRead === where.isRead);
+      }
+
+      if (orderBy?.createdAt === 'desc') {
+        items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      } else if (orderBy?.createdAt === 'asc') {
+        items.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      }
+
+      return items;
+    };
+
+    this.notification.findFirst = async ({ where }: any = {}) => {
+      const items = await this.notification.findMany({ where });
+      return items.find((notification: NotificationRecord) => {
+        if (where?.id && notification.id !== where.id) {
+          return false;
+        }
+
+        return true;
+      }) ?? null;
+    };
+
+    this.notification.update = async ({ where, data }: any) => {
+      const notification = this.notifications.find((item) => item.id === where.id) ?? null;
+
+      if (!notification) {
+        return null;
+      }
+
+      Object.assign(notification, data);
+      return notification;
+    };
+
+    this.notification.updateMany = async ({ where, data }: any) => {
+      let count = 0;
+
+      for (const notification of this.notifications) {
+        if (where?.userId && notification.userId !== where.userId) {
+          continue;
+        }
+
+        if (typeof where?.isRead === 'boolean' && notification.isRead !== where.isRead) {
+          continue;
+        }
+
+        Object.assign(notification, data);
+        count += 1;
+      }
+
+      return { count };
+    };
+
+    this.notification.count = async ({ where }: any = {}) =>
+      (await this.notification.findMany({ where })).length;
   }
 
   private createSeedUser(phone: string, roles: RoleKey[]) {
@@ -1900,6 +2183,14 @@ export class InMemoryPrismaService {
         ? {
             settings:
               this.userSettings.find((setting) => setting.userId === user.id) ?? null,
+          }
+        : {}),
+      ...(include?.playerProfile
+        ? {
+            playerProfile: this.withPlayerProfileIncludes(
+              this.playerProfiles.find((profile) => profile.userId === user.id)!,
+              include.playerProfile.include,
+            ),
           }
         : {}),
     };
@@ -2127,6 +2418,28 @@ export class InMemoryPrismaService {
                     }
                   : {}),
               })),
+          }
+        : {}),
+    };
+  }
+
+  private withMatchRequestIncludes(matchRequest: MatchRequestRecord, include: any) {
+    return {
+      ...matchRequest,
+      ...(include?.initiator
+        ? {
+            initiator: this.withUserIncludes(
+              this.users.find((user) => user.id === matchRequest.initiatorId)!,
+              include.initiator.include,
+            ),
+          }
+        : {}),
+      ...(include?.opponent
+        ? {
+            opponent: this.withUserIncludes(
+              this.users.find((user) => user.id === matchRequest.opponentId)!,
+              include.opponent.include,
+            ),
           }
         : {}),
     };

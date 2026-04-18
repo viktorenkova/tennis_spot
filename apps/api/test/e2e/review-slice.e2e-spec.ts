@@ -241,6 +241,43 @@ describe('P1 review and booking slices (e2e)', () => {
       });
   }
 
+  function createMatchRequest(
+    accessToken: string,
+    opponentId: string,
+    overrides: Partial<{
+      proposedDate: string;
+      proposedTimeFrom: string;
+      proposedTimeTo: string;
+      format: 'singles' | 'doubles';
+      message: string;
+    }> = {},
+  ) {
+    return request(app.getHttpServer())
+      .post('/api/v1/match-requests')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        opponentId,
+        proposedDate: '2099-04-20',
+        proposedTimeFrom: '18:00',
+        proposedTimeTo: '19:30',
+        format: 'singles',
+        message: 'Friendly match?',
+        ...overrides,
+      });
+  }
+
+  function getNotifications(accessToken: string) {
+    return request(app.getHttpServer())
+      .get('/api/v1/notifications')
+      .set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  function getUnreadCount(accessToken: string) {
+    return request(app.getHttpServer())
+      .get('/api/v1/notifications/unread-count')
+      .set('Authorization', `Bearer ${accessToken}`);
+  }
+
   it('runs the happy path from demo auth to admin approval', async () => {
     const partnerToken = await demoLogin('demo-partner');
 
@@ -324,6 +361,74 @@ describe('P1 review and booking slices (e2e)', () => {
       .expect(200);
 
     expect(partnerProfileAfterApproval.body.data.verificationStatus).toBe('verified');
+  });
+
+  it('creates verification notifications and supports read actions', async () => {
+    const partnerToken = await demoLogin('demo-partner');
+    const adminToken = await demoLogin('demo-admin');
+    const location = await getDemoLocation();
+
+    await createPartnerProfile(partnerToken, location.cityId, location.districtId).expect(201);
+
+    const submitResponse = await request(app.getHttpServer())
+      .post('/api/v1/partner/verification/submit')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .send({})
+      .expect(201);
+
+    const adminNotificationsResponse = await getNotifications(adminToken).expect(200);
+    expect(adminNotificationsResponse.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'verification_submitted',
+          relatedEntityType: 'verification_request',
+          relatedEntityId: submitResponse.body.data.id,
+          isRead: false,
+        }),
+      ]),
+    );
+
+    const adminUnreadCountResponse = await getUnreadCount(adminToken).expect(200);
+    expect(adminUnreadCountResponse.body.data.count).toBeGreaterThanOrEqual(1);
+
+    const notificationId = adminNotificationsResponse.body.data.find(
+      (item: any) => item.relatedEntityId === submitResponse.body.data.id,
+    ).id;
+
+    const readResponse = await request(app.getHttpServer())
+      .post(`/api/v1/notifications/${notificationId}/read`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({})
+      .expect(201);
+
+    expect(readResponse.body.data.isRead).toBe(true);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/verification-requests/${submitResponse.body.data.id}/approve`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        comment: 'Approved.',
+      })
+      .expect(201);
+
+    const partnerNotificationsResponse = await getNotifications(partnerToken).expect(200);
+    expect(partnerNotificationsResponse.body.data[0]).toMatchObject({
+      type: 'verification_approved',
+      relatedEntityType: 'verification_request',
+      relatedEntityId: submitResponse.body.data.id,
+      isRead: false,
+    });
+
+    const readAllResponse = await request(app.getHttpServer())
+      .post('/api/v1/notifications/read-all')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .send({})
+      .expect(201);
+
+    expect(readAllResponse.body.data.updatedCount).toBeGreaterThanOrEqual(1);
+
+    const partnerUnreadCountResponse = await getUnreadCount(partnerToken).expect(200);
+    expect(partnerUnreadCountResponse.body.data.count).toBe(0);
   });
 
   it('lets a partner create a venue, update it and manage courts', async () => {
@@ -638,6 +743,25 @@ describe('P1 review and booking slices (e2e)', () => {
     expect(templateResponse.body.data.weekday).toBe(2);
     expect(Number(templateResponse.body.data.basePrice)).toBe(1800);
 
+    const sundayTemplateResponse = await createScheduleTemplate(partnerToken, courtId, {
+      weekday: 0,
+      timeFrom: '08:00',
+      timeTo: '09:00',
+      slotDurationMinutes: 60,
+    }).expect(201);
+
+    expect(sundayTemplateResponse.body.data.weekday).toBe(0);
+
+    const updatedTemplateResponse = await request(app.getHttpServer())
+      .patch(`/api/v1/schedule-templates/${templateResponse.body.data.id}`)
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .send({
+        basePrice: 1900,
+      })
+      .expect(200);
+
+    expect(Number(updatedTemplateResponse.body.data.basePrice)).toBe(1900);
+
     const exceptionResponse = await createScheduleException(partnerToken, courtId, {
       exceptionType: 'custom_price',
       timeFrom: '18:00',
@@ -648,12 +772,22 @@ describe('P1 review and booking slices (e2e)', () => {
 
     expect(exceptionResponse.body.data.exceptionType).toBe('custom_price');
 
+    const updatedExceptionResponse = await request(app.getHttpServer())
+      .patch(`/api/v1/schedule-exceptions/${exceptionResponse.body.data.id}`)
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .send({
+        comment: 'Prime time updated',
+      })
+      .expect(200);
+
+    expect(updatedExceptionResponse.body.data.comment).toBe('Prime time updated');
+
     const templatesListResponse = await request(app.getHttpServer())
       .get(`/api/v1/partner/courts/${courtId}/schedule-templates`)
       .set('Authorization', `Bearer ${partnerToken}`)
       .expect(200);
 
-    expect(templatesListResponse.body.data.length).toBe(2);
+    expect(templatesListResponse.body.data.length).toBe(3);
 
     const availabilityResponse = await request(app.getHttpServer())
       .get(`/api/v1/courts/${courtId}/availability?date=2026-04-20`)
@@ -664,6 +798,13 @@ describe('P1 review and booking slices (e2e)', () => {
     expect(availabilityResponse.body.data.intervals[0].timeFrom).toBe('18:00');
     expect(availabilityResponse.body.data.intervals[0].timeTo).toBe('19:30');
     expect(Number(availabilityResponse.body.data.intervals[0].price)).toBe(2500);
+
+    const sundayAvailabilityResponse = await request(app.getHttpServer())
+      .get(`/api/v1/courts/${courtId}/availability?date=2026-04-19`)
+      .expect(200);
+
+    expect(sundayAvailabilityResponse.body.data.intervals[0].timeFrom).toBe('08:00');
+    expect(sundayAvailabilityResponse.body.data.intervals[0].timeTo).toBe('09:00');
   });
 
   it('returns matching booking options by filters and excludes unavailable courts', async () => {
@@ -671,13 +812,14 @@ describe('P1 review and booking slices (e2e)', () => {
 
     const matchingResponse = await request(app.getHttpServer())
       .get(
-        `/api/v1/booking-requests/options?cityId=${location.cityId}&districtId=${location.districtId}&bookingDate=2026-04-20&timeFrom=18:00&timeTo=19:30&surfaceType=hard&courtType=indoor`,
+        `/api/v1/booking-requests/options?cityId=${location.cityId}&districtId=${location.districtId}&bookingDate=2026-04-20&timeFrom=18:00&timeTo=19:30&surfaceType=hard&courtType=indoor&playersCount=4`,
       )
       .expect(200);
 
     expect(matchingResponse.body.data).toHaveLength(1);
     expect(matchingResponse.body.data[0].court.id).toBe(courtId);
     expect(matchingResponse.body.data[0].court.isIndoor).toBe(true);
+    expect(matchingResponse.body.data[0].availableInterval.playersCount).toBe(4);
 
     const wrongCourtTypeResponse = await request(app.getHttpServer())
       .get(
@@ -704,8 +846,36 @@ describe('P1 review and booking slices (e2e)', () => {
     expect(blockedResponse.body.data).toHaveLength(0);
   });
 
+  it('validates booking discovery filters and returns empty state data for no matches', async () => {
+    const { location } = await prepareVerifiedInventory();
+
+    const invalidTimeResponse = await request(app.getHttpServer())
+      .get(
+        `/api/v1/booking-requests/options?cityId=${location.cityId}&bookingDate=2026-04-20&timeFrom=19:30&timeTo=18:00&playersCount=2`,
+      )
+      .expect(400);
+
+    expect(invalidTimeResponse.body.error.code).toBe('VALIDATION_ERROR');
+
+    const invalidPlayersCountResponse = await request(app.getHttpServer())
+      .get(
+        `/api/v1/booking-requests/options?cityId=${location.cityId}&bookingDate=2026-04-20&timeFrom=18:00&timeTo=19:30&playersCount=10`,
+      )
+      .expect(400);
+
+    expect(invalidPlayersCountResponse.body.error.code).toBe('VALIDATION_ERROR');
+
+    const noOptionsResponse = await request(app.getHttpServer())
+      .get(
+        `/api/v1/booking-requests/options?cityId=${location.cityId}&bookingDate=2026-04-20&timeFrom=08:00&timeTo=09:00&playersCount=2`,
+      )
+      .expect(200);
+
+    expect(noOptionsResponse.body.data).toHaveLength(0);
+  });
+
   it('does not allow a non-owner to manage foreign court schedules', async () => {
-    const { courtId } = await prepareVerifiedInventory();
+    const { partnerToken, courtId } = await prepareVerifiedInventory();
     const foreignPartnerToken = await demoLogin('review-partner');
 
     const createResponse = await createScheduleTemplate(foreignPartnerToken, courtId).expect(404);
@@ -717,6 +887,36 @@ describe('P1 review and booking slices (e2e)', () => {
       .expect(404);
 
     expect(listResponse.body.error.code).toBe('COURT_NOT_FOUND');
+
+    const ownerTemplateResponse = await createScheduleTemplate(partnerToken, courtId, {
+      weekday: 3,
+      timeFrom: '12:00',
+      timeTo: '13:00',
+    }).expect(201);
+
+    const flatTemplateUpdateResponse = await request(app.getHttpServer())
+      .patch(`/api/v1/schedule-templates/${ownerTemplateResponse.body.data.id}`)
+      .set('Authorization', `Bearer ${foreignPartnerToken}`)
+      .send({
+        basePrice: 1000,
+      })
+      .expect(404);
+
+    expect(flatTemplateUpdateResponse.body.error.code).toBe('COURT_NOT_FOUND');
+
+    const ownerExceptionResponse = await createScheduleException(partnerToken, courtId, {
+      date: '2026-04-22',
+      exceptionType: 'blocked',
+      timeFrom: '12:00',
+      timeTo: '13:00',
+    }).expect(201);
+
+    const flatExceptionDeleteResponse = await request(app.getHttpServer())
+      .delete(`/api/v1/schedule-exceptions/${ownerExceptionResponse.body.data.id}`)
+      .set('Authorization', `Bearer ${foreignPartnerToken}`)
+      .expect(404);
+
+    expect(flatExceptionDeleteResponse.body.error.code).toBe('COURT_NOT_FOUND');
   });
 
   it('validates schedule payloads and unknown schedule ids', async () => {
@@ -769,6 +969,14 @@ describe('P1 review and booking slices (e2e)', () => {
     expect(createBookingResponse.body.data.status).toBe('pending');
     expect(createBookingResponse.body.data.durationMinutes).toBe(90);
 
+    const partnerNotificationsResponse = await getNotifications(partnerToken).expect(200);
+    expect(partnerNotificationsResponse.body.data[0]).toMatchObject({
+      type: 'booking_created',
+      relatedEntityType: 'booking_request',
+      relatedEntityId: createBookingResponse.body.data.id,
+      isRead: false,
+    });
+
     const partnerListResponse = await request(app.getHttpServer())
       .get('/api/v1/partner/booking-requests')
       .set('Authorization', `Bearer ${partnerToken}`)
@@ -806,6 +1014,14 @@ describe('P1 review and booking slices (e2e)', () => {
       .expect(200);
 
     expect(playerListResponse.body.data[0].status).toBe('confirmed');
+
+    const playerNotificationsResponse = await getNotifications(playerToken).expect(200);
+    expect(playerNotificationsResponse.body.data[0]).toMatchObject({
+      type: 'booking_confirmed',
+      relatedEntityType: 'booking_request',
+      relatedEntityId: createBookingResponse.body.data.id,
+      isRead: false,
+    });
   });
 
   it('returns 403 when a non-player tries to create a booking request', async () => {
@@ -1015,6 +1231,138 @@ describe('P1 review and booking slices (e2e)', () => {
       .expect(404);
 
     expect(response.body.error.code).toBe('BOOKING_REQUEST_NOT_FOUND');
+  });
+
+  it('lets players create and accept a match request with notifications', async () => {
+    const initiatorToken = await demoLogin('demo-player');
+    const opponentToken = await demoLogin('demo-partner');
+
+    const initiatorProfileResponse = await createPlayerProfile(
+      initiatorToken,
+      'Initiator',
+      'Player',
+    ).expect(201);
+    const opponentProfileResponse = await createPlayerProfile(
+      opponentToken,
+      'Opponent',
+      'Player',
+    ).expect(201);
+
+    const playersResponse = await request(app.getHttpServer())
+      .get('/api/v1/players')
+      .set('Authorization', `Bearer ${initiatorToken}`)
+      .expect(200);
+
+    expect(playersResponse.body.data.map((player: any) => player.id)).toEqual(
+      expect.arrayContaining([initiatorProfileResponse.body.data.id, opponentProfileResponse.body.data.id]),
+    );
+
+    const createResponse = await createMatchRequest(
+      initiatorToken,
+      opponentProfileResponse.body.data.userId,
+    ).expect(201);
+
+    expect(createResponse.body.data.status).toBe('pending');
+    expect(createResponse.body.data.opponent.playerProfile.firstName).toBe('Opponent');
+
+    const opponentNotificationsResponse = await getNotifications(opponentToken).expect(200);
+    expect(opponentNotificationsResponse.body.data[0]).toMatchObject({
+      type: 'match_request_created',
+      relatedEntityType: 'match_request',
+      relatedEntityId: createResponse.body.data.id,
+    });
+
+    const incomingResponse = await request(app.getHttpServer())
+      .get('/api/v1/match-requests/incoming')
+      .set('Authorization', `Bearer ${opponentToken}`)
+      .expect(200);
+
+    expect(incomingResponse.body.data).toHaveLength(1);
+    expect(incomingResponse.body.data[0].initiator.playerProfile.firstName).toBe('Initiator');
+
+    const acceptResponse = await request(app.getHttpServer())
+      .post(`/api/v1/match-requests/${createResponse.body.data.id}/accept`)
+      .set('Authorization', `Bearer ${opponentToken}`)
+      .send({})
+      .expect(201);
+
+    expect(acceptResponse.body.data.status).toBe('accepted');
+
+    const outgoingResponse = await request(app.getHttpServer())
+      .get('/api/v1/match-requests/outgoing')
+      .set('Authorization', `Bearer ${initiatorToken}`)
+      .expect(200);
+
+    expect(outgoingResponse.body.data[0].status).toBe('accepted');
+
+    const initiatorNotificationsResponse = await getNotifications(initiatorToken).expect(200);
+    expect(initiatorNotificationsResponse.body.data[0]).toMatchObject({
+      type: 'match_request_accepted',
+      relatedEntityType: 'match_request',
+      relatedEntityId: createResponse.body.data.id,
+    });
+  });
+
+  it('validates match request negative cases', async () => {
+    const initiatorToken = await demoLogin('demo-player');
+    const opponentToken = await demoLogin('demo-partner');
+    const foreignToken = await demoLogin('review-partner');
+
+    const initiatorProfileResponse = await createPlayerProfile(
+      initiatorToken,
+      'Initiator',
+      'Player',
+    ).expect(201);
+    const opponentProfileResponse = await createPlayerProfile(
+      opponentToken,
+      'Opponent',
+      'Player',
+    ).expect(201);
+    await createPlayerProfile(foreignToken, 'Foreign', 'Player').expect(201);
+
+    const selfChallengeResponse = await createMatchRequest(
+      initiatorToken,
+      initiatorProfileResponse.body.data.userId,
+    ).expect(400);
+
+    expect(selfChallengeResponse.body.error.code).toBe('MATCH_REQUEST_INVALID_OPPONENT');
+
+    const invalidDateResponse = await createMatchRequest(
+      initiatorToken,
+      opponentProfileResponse.body.data.userId,
+      {
+        proposedDate: '2020-01-01',
+      },
+    ).expect(400);
+
+    expect(invalidDateResponse.body.error.code).toBe('MATCH_REQUEST_INVALID_SCHEDULE');
+
+    const matchRequestResponse = await createMatchRequest(
+      initiatorToken,
+      opponentProfileResponse.body.data.userId,
+    ).expect(201);
+
+    const unauthorizedAcceptResponse = await request(app.getHttpServer())
+      .post(`/api/v1/match-requests/${matchRequestResponse.body.data.id}/accept`)
+      .set('Authorization', `Bearer ${foreignToken}`)
+      .send({})
+      .expect(404);
+
+    expect(unauthorizedAcceptResponse.body.error.code).toBe('MATCH_REQUEST_NOT_FOUND');
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/match-requests/${matchRequestResponse.body.data.id}/decline`)
+      .set('Authorization', `Bearer ${opponentToken}`)
+      .send({})
+      .expect(201);
+
+    const doubleActionResponse = await request(app.getHttpServer())
+      .post(`/api/v1/match-requests/${matchRequestResponse.body.data.id}/accept`)
+      .set('Authorization', `Bearer ${opponentToken}`)
+      .send({})
+      .expect(409);
+
+    expect(doubleActionResponse.body.error.code).toBe('MATCH_REQUEST_INVALID_TRANSITION');
   });
 
   it('returns complete validation feedback for an empty booking request payload', async () => {

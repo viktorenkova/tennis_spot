@@ -13,11 +13,11 @@ import {
 } from 'class-validator';
 
 export class CreateCourtScheduleTemplateDto {
-  @ApiProperty({ description: '1 = Monday, 7 = Sunday' })
+  @ApiProperty({ description: '0 = Sunday, 6 = Saturday' })
   @Type(() => Number)
   @IsInt({ message: 'День недели должен быть целым числом.' })
-  @Min(1, { message: 'День недели должен быть в диапазоне от 1 до 7.' })
-  @Max(7, { message: 'День недели должен быть в диапазоне от 1 до 7.' })
+  @Min(0, { message: 'День недели должен быть в диапазоне от 0 до 6.' })
+  @Max(6, { message: 'День недели должен быть в диапазоне от 0 до 6.' })
   weekday!: number;
 
   @ApiProperty()
