@@ -126,7 +126,7 @@ export class VerificationService {
     if (!partnerProfile) {
       throw new AppError(HttpStatus.NOT_FOUND, {
         code: ERROR_CODES.partnerProfileNotFound,
-        message: 'РџСЂРѕС„РёР»СЊ РїР°СЂС‚РЅРµСЂР° РЅРµ РЅР°Р№РґРµРЅ.',
+        message: 'Профиль партнера не найден.',
       });
     }
 
@@ -149,7 +149,7 @@ export class VerificationService {
     if (partnerVerificationStatus === 'verified') {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestInvalidTransition,
-        message: 'Р’РµСЂРёС„РёС†РёСЂРѕРІР°РЅРЅС‹Р№ РїСЂРѕС„РёР»СЊ РїР°СЂС‚РЅРµСЂР° РЅРµ С‚СЂРµР±СѓРµС‚ РЅРѕРІРѕР№ Р·Р°СЏРІРєРё.',
+        message: 'Верифицированный профиль партнера не требует новой заявки.',
       });
     }
 
@@ -169,7 +169,7 @@ export class VerificationService {
     if (activeReviewRequest) {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestAlreadyPending,
-        message: 'Р—Р°СЏРІРєР° РЅР° РІРµСЂРёС„РёРєР°С†РёСЋ СѓР¶Рµ РЅР°С…РѕРґРёС‚СЃСЏ РЅР° СЂР°СЃСЃРјРѕС‚СЂРµРЅРёРё.',
+        message: 'Заявка на верификацию уже находится на рассмотрении.',
       });
     }
 
@@ -179,7 +179,7 @@ export class VerificationService {
     ) {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestInvalidTransition,
-        message: 'Р’РµСЂРёС„РёС†РёСЂРѕРІР°РЅРЅС‹Р№ РїСЂРѕС„РёР»СЊ РїР°СЂС‚РЅРµСЂР° РЅРµР»СЊР·СЏ РѕС‚РїСЂР°РІРёС‚СЊ РїРѕРІС‚РѕСЂРЅРѕ.',
+        message: 'Верифицированный профиль партнера нельзя отправить повторно.',
       });
     }
 

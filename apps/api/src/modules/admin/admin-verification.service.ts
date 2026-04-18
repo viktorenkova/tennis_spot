@@ -82,7 +82,7 @@ export class AdminVerificationService {
     if (!request) {
       throw new AppError(HttpStatus.NOT_FOUND, {
         code: ERROR_CODES.verificationRequestNotFound,
-        message: 'Р—Р°СЏРІРєР° РЅР° РІРµСЂРёС„РёРєР°С†РёСЋ РЅРµ РЅР°Р№РґРµРЅР°.',
+        message: 'Заявка на верификацию не найдена.',
       });
     }
 
@@ -161,7 +161,7 @@ export class AdminVerificationService {
     if (!request) {
       throw new AppError(HttpStatus.NOT_FOUND, {
         code: ERROR_CODES.verificationRequestNotFound,
-        message: 'Р—Р°СЏРІРєР° РЅР° РІРµСЂРёС„РёРєР°С†РёСЋ РЅРµ РЅР°Р№РґРµРЅР°.',
+        message: 'Заявка на верификацию не найдена.',
       });
     }
 
@@ -172,21 +172,21 @@ export class AdminVerificationService {
     ) {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestAlreadyFinalized,
-        message: `Р—Р°СЏРІРєР° СѓР¶Рµ С„РёРЅР°Р»РёР·РёСЂРѕРІР°РЅР° РІ СЃС‚Р°С‚СѓСЃРµ ${request.status}.`,
+        message: `Заявка уже финализирована в статусе ${request.status}.`,
       });
     }
 
     if (!REVIEWABLE_STATUSES.includes(request.status)) {
       throw new AppError(HttpStatus.CONFLICT, {
         code: ERROR_CODES.verificationRequestInvalidTransition,
-        message: `Р—Р°СЏРІРєСѓ РІ СЃС‚Р°С‚СѓСЃРµ ${request.status} РЅРµР»СЊР·СЏ РїРµСЂРµРґР°С‚СЊ РЅР° РјРѕРґРµСЂР°С†РёСЋ.`,
+        message: `Заявку в статусе ${request.status} нельзя передать на модерацию.`,
       });
     }
 
     if (request.partnerProfile.ownerUserId === params.actorUserId) {
       throw new AppError(HttpStatus.FORBIDDEN, {
         code: ERROR_CODES.forbidden,
-        message: 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ РЅРµ РјРѕР¶РµС‚ РјРѕРґРµСЂРёСЂРѕРІР°С‚СЊ СЃРѕР±СЃС‚РІРµРЅРЅСѓСЋ Р·Р°СЏРІРєСѓ РЅР° РІРµСЂРёС„РёРєР°С†РёСЋ.',
+        message: 'Администратор не может модерировать собственную заявку на верификацию.',
       });
     }
 

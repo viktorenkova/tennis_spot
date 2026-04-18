@@ -58,6 +58,6 @@ export class CreateVenueDto {
   accessNotes?: string;
   @ApiPropertyOptional()
   @IsOptional()
-  @IsBoolean({ message: 'РџСЂРёР·РЅР°Рє Р°РєС‚РёРІРЅРѕСЃС‚Рё РїР»РѕС‰Р°РґРєРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±СѓР»РµРІС‹Рј Р·РЅР°С‡РµРЅРёРµРј.' })
+  @IsBoolean({ message: 'Признак активности площадки должен быть булевым значением.' })
   isActive?: boolean;
 }

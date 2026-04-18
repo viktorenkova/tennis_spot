@@ -6,36 +6,36 @@ const DOCUMENT_TYPES = ['registration_certificate', 'tax_document', 'charter', '
 
 export class AddVerificationDocumentDto {
   @ApiProperty({ enum: DOCUMENT_TYPES })
-  @IsDefined({ message: 'РўРёРї РґРѕРєСѓРјРµРЅС‚Р° РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
-  @IsString({ message: 'РўРёРї РґРѕРєСѓРјРµРЅС‚Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ СЃС‚СЂРѕРєРѕР№.' })
-  @IsNotEmpty({ message: 'РўРёРї РґРѕРєСѓРјРµРЅС‚Р° РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
+  @IsDefined({ message: 'Тип документа обязателен.' })
+  @IsString({ message: 'Тип документа должен быть строкой.' })
+  @IsNotEmpty({ message: 'Тип документа обязателен.' })
   @IsIn(DOCUMENT_TYPES, {
-    message: 'РўРёРї РґРѕРєСѓРјРµРЅС‚Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РѕРґРЅРёРј РёР· РґРѕРїСѓСЃС‚РёРјС‹С… Р·РЅР°С‡РµРЅРёР№.',
+    message: 'Тип документа должен быть одним из допустимых значений.',
   })
   documentType!: string;
 
   @ApiProperty()
-  @IsDefined({ message: 'РСЃС…РѕРґРЅРѕРµ РёРјСЏ С„Р°Р№Р»Р° РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ.' })
-  @IsString({ message: 'РСЃС…РѕРґРЅРѕРµ РёРјСЏ С„Р°Р№Р»Р° РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ СЃС‚СЂРѕРєРѕР№.' })
-  @IsNotEmpty({ message: 'РСЃС…РѕРґРЅРѕРµ РёРјСЏ С„Р°Р№Р»Р° РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ.' })
+  @IsDefined({ message: 'Исходное имя файла обязательно.' })
+  @IsString({ message: 'Исходное имя файла должно быть строкой.' })
+  @IsNotEmpty({ message: 'Исходное имя файла обязательно.' })
   originalName!: string;
 
   @ApiProperty()
-  @IsDefined({ message: 'РљР»СЋС‡ С…СЂР°РЅРµРЅРёСЏ РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
-  @IsString({ message: 'РљР»СЋС‡ С…СЂР°РЅРµРЅРёСЏ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ СЃС‚СЂРѕРєРѕР№.' })
-  @IsNotEmpty({ message: 'РљР»СЋС‡ С…СЂР°РЅРµРЅРёСЏ РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
+  @IsDefined({ message: 'Ключ хранения обязателен.' })
+  @IsString({ message: 'Ключ хранения должен быть строкой.' })
+  @IsNotEmpty({ message: 'Ключ хранения обязателен.' })
   storageKey!: string;
 
   @ApiProperty()
-  @IsDefined({ message: 'MIME-С‚РёРї РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
-  @IsString({ message: 'MIME-С‚РёРї РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ СЃС‚СЂРѕРєРѕР№.' })
-  @IsNotEmpty({ message: 'MIME-С‚РёРї РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
+  @IsDefined({ message: 'MIME-тип обязателен.' })
+  @IsString({ message: 'MIME-тип должен быть строкой.' })
+  @IsNotEmpty({ message: 'MIME-тип обязателен.' })
   mimeType!: string;
 
   @ApiProperty()
-  @IsDefined({ message: 'Р Р°Р·РјРµСЂ С„Р°Р№Р»Р° РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
+  @IsDefined({ message: 'Размер файла обязателен.' })
   @Type(() => Number)
-  @IsInt({ message: 'Р Р°Р·РјРµСЂ С„Р°Р№Р»Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ С†РµР»С‹Рј С‡РёСЃР»РѕРј.' })
-  @Min(1, { message: 'Р Р°Р·РјРµСЂ С„Р°Р№Р»Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ РЅСѓР»СЏ.' })
+  @IsInt({ message: 'Размер файла должен быть целым числом.' })
+  @Min(1, { message: 'Размер файла должен быть больше нуля.' })
   sizeBytes!: number;
 }

@@ -29,7 +29,7 @@ function resolveApiBaseUrl() {
 
 function getFriendlyNetworkMessage(error: unknown) {
   if (!(error instanceof Error)) {
-    return 'РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РїРѕР»РЅРёС‚СЊ Р·Р°РїСЂРѕСЃ Рє СЃРµСЂРІРµСЂСѓ.';
+    return 'Не удалось выполнить запрос к серверу.';
   }
 
   const message = error.message.toLowerCase();
@@ -41,10 +41,10 @@ function getFriendlyNetworkMessage(error: unknown) {
     message.includes('load failed') ||
     message.includes('econnrefused')
   ) {
-    return 'РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРєР»СЋС‡РёС‚СЊСЃСЏ Рє СЃРµСЂРІРµСЂСѓ. РџСЂРѕРІРµСЂСЊС‚Рµ, С‡С‚Рѕ backend Р·Р°РїСѓС‰РµРЅ.';
+    return 'Не удалось подключиться к серверу. Проверьте, что backend запущен.';
   }
 
-  return 'РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РїРѕР»РЅРёС‚СЊ Р·Р°РїСЂРѕСЃ Рє СЃРµСЂРІРµСЂСѓ.';
+  return 'Не удалось выполнить запрос к серверу.';
 }
 
 function formatFieldErrors(fields?: Record<string, string[]>) {
@@ -98,7 +98,7 @@ export async function apiRequest<T>(
           meta: {},
           error: {
             code: 'INVALID_RESPONSE',
-            message: 'РЎРµСЂРІРµСЂ РІРµСЂРЅСѓР» РЅРµРїРѕРЅСЏС‚РЅС‹Р№ РѕС‚РІРµС‚. РћР±РЅРѕРІРёС‚Рµ СЃС‚СЂР°РЅРёС†Сѓ Рё РїРѕРїСЂРѕР±СѓР№С‚Рµ СЃРЅРѕРІР°.',
+            message: 'Сервер вернул непонятный ответ. Обновите страницу и попробуйте снова.',
           },
         };
       }
@@ -118,7 +118,7 @@ export async function apiRequest<T>(
       meta: {},
       error: {
         code: 'INVALID_RESPONSE',
-        message: 'РЎРµСЂРІРµСЂ РІРµСЂРЅСѓР» РїСѓСЃС‚РѕР№ РёР»Рё РЅРµРїРѕРЅСЏС‚РЅС‹Р№ РѕС‚РІРµС‚.',
+        message: 'Сервер вернул пустой или непонятный ответ.',
       },
     };
   } catch (error) {

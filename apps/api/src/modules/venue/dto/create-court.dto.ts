@@ -36,6 +36,6 @@ export class CreateCourtDto {
   sortOrder?: number;
   @ApiPropertyOptional()
   @IsOptional()
-  @IsBoolean({ message: 'РџСЂРёР·РЅР°Рє Р°РєС‚РёРІРЅРѕСЃС‚Рё РєРѕСЂС‚Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±СѓР»РµРІС‹Рј Р·РЅР°С‡РµРЅРёРµРј.' })
+  @IsBoolean({ message: 'Признак активности корта должен быть булевым значением.' })
   isActive?: boolean;
 }
