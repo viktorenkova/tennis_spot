@@ -1,25 +1,41 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsString, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsDefined, IsIn, IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
+
+const DOCUMENT_TYPES = ['registration_certificate', 'tax_document', 'charter', 'other'] as const;
 
 export class AddVerificationDocumentDto {
-  @ApiProperty()
-  @IsString({ message: 'Тип документа должен быть строкой.' })
+  @ApiProperty({ enum: DOCUMENT_TYPES })
+  @IsDefined({ message: 'РўРёРї РґРѕРєСѓРјРµРЅС‚Р° РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
+  @IsString({ message: 'РўРёРї РґРѕРєСѓРјРµРЅС‚Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ СЃС‚СЂРѕРєРѕР№.' })
+  @IsNotEmpty({ message: 'РўРёРї РґРѕРєСѓРјРµРЅС‚Р° РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
+  @IsIn(DOCUMENT_TYPES, {
+    message: 'РўРёРї РґРѕРєСѓРјРµРЅС‚Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РѕРґРЅРёРј РёР· РґРѕРїСѓСЃС‚РёРјС‹С… Р·РЅР°С‡РµРЅРёР№.',
+  })
   documentType!: string;
 
   @ApiProperty()
-  @IsString({ message: 'Исходное имя файла должно быть строкой.' })
+  @IsDefined({ message: 'РСЃС…РѕРґРЅРѕРµ РёРјСЏ С„Р°Р№Р»Р° РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ.' })
+  @IsString({ message: 'РСЃС…РѕРґРЅРѕРµ РёРјСЏ С„Р°Р№Р»Р° РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ СЃС‚СЂРѕРєРѕР№.' })
+  @IsNotEmpty({ message: 'РСЃС…РѕРґРЅРѕРµ РёРјСЏ С„Р°Р№Р»Р° РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ.' })
   originalName!: string;
 
   @ApiProperty()
-  @IsString({ message: 'Ключ хранения должен быть строкой.' })
+  @IsDefined({ message: 'РљР»СЋС‡ С…СЂР°РЅРµРЅРёСЏ РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
+  @IsString({ message: 'РљР»СЋС‡ С…СЂР°РЅРµРЅРёСЏ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ СЃС‚СЂРѕРєРѕР№.' })
+  @IsNotEmpty({ message: 'РљР»СЋС‡ С…СЂР°РЅРµРЅРёСЏ РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
   storageKey!: string;
 
   @ApiProperty()
-  @IsString({ message: 'MIME-тип должен быть строкой.' })
+  @IsDefined({ message: 'MIME-С‚РёРї РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
+  @IsString({ message: 'MIME-С‚РёРї РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ СЃС‚СЂРѕРєРѕР№.' })
+  @IsNotEmpty({ message: 'MIME-С‚РёРї РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
   mimeType!: string;
 
   @ApiProperty()
-  @IsInt({ message: 'Размер файла должен быть целым числом.' })
-  @Min(1, { message: 'Размер файла должен быть больше нуля.' })
+  @IsDefined({ message: 'Р Р°Р·РјРµСЂ С„Р°Р№Р»Р° РѕР±СЏР·Р°С‚РµР»РµРЅ.' })
+  @Type(() => Number)
+  @IsInt({ message: 'Р Р°Р·РјРµСЂ С„Р°Р№Р»Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ С†РµР»С‹Рј С‡РёСЃР»РѕРј.' })
+  @Min(1, { message: 'Р Р°Р·РјРµСЂ С„Р°Р№Р»Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ РЅСѓР»СЏ.' })
   sizeBytes!: number;
 }

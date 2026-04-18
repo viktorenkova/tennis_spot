@@ -160,6 +160,17 @@ type DistrictRecord = {
   updatedAt: Date;
 };
 
+type FileRecord = {
+  id: string;
+  originalName: string;
+  storageBucket: string;
+  storageKey: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedByUserId: string | null;
+  createdAt: Date;
+};
+
 type AddressRecord = {
   id: string;
   cityId: string | null;
@@ -217,6 +228,14 @@ type VerificationRequestRecord = {
   reviewedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+type VerificationDocumentRecord = {
+  id: string;
+  verificationRequestId: string;
+  fileId: string;
+  documentType: string;
+  createdAt: Date;
 };
 
 type BookingRequestRecord = {
@@ -296,6 +315,7 @@ export class InMemoryPrismaService {
   private authPhoneChallenges: AuthPhoneChallengeRecord[] = [];
   private cities: CityRecord[] = [];
   private districts: DistrictRecord[] = [];
+  private files: FileRecord[] = [];
   private playerProfiles: PlayerProfileRecord[] = [];
   private playerVisibilitySettings: PlayerVisibilitySettingRecord[] = [];
   private playerPlayPreferences: PlayerPlayPreferenceRecord[] = [];
@@ -306,6 +326,7 @@ export class InMemoryPrismaService {
   private venues: VenueRecord[] = [];
   private courts: CourtRecord[] = [];
   private verificationRequests: VerificationRequestRecord[] = [];
+  private verificationDocuments: VerificationDocumentRecord[] = [];
   private bookingRequests: BookingRequestRecord[] = [];
   private bookingRequestStatusHistoryEntries: BookingRequestStatusHistoryRecord[] = [];
   private courtScheduleTemplates: CourtScheduleTemplateRecord[] = [];
@@ -457,25 +478,43 @@ export class InMemoryPrismaService {
 
   file: any = {
     create: async (args: any) => {
-      const file = {
+      const file: FileRecord = {
         id: randomUUID(),
         createdAt: new Date(),
-        ...args.data,
+        originalName: args.data.originalName,
+        storageBucket: args.data.storageBucket,
+        storageKey: args.data.storageKey,
+        mimeType: args.data.mimeType,
+        sizeBytes: args.data.sizeBytes,
+        uploadedByUserId: args.data.uploadedByUserId ?? null,
       };
 
+      this.files.push(file);
       return file;
     },
   };
 
   verificationDocument: any = {
-    create: async (args: any) => ({
-      id: randomUUID(),
-      createdAt: new Date(),
-      ...args.data,
-      file: {
-        id: args.data.fileId,
-      },
-    }),
+    create: async ({ data, include }: any) => {
+      const document: VerificationDocumentRecord = {
+        id: randomUUID(),
+        verificationRequestId: data.verificationRequestId,
+        fileId: data.fileId,
+        documentType: data.documentType,
+        createdAt: new Date(),
+      };
+
+      this.verificationDocuments.push(document);
+
+      return {
+        ...document,
+        ...(include?.file
+          ? {
+              file: this.files.find((file) => file.id === document.fileId) ?? null,
+            }
+          : {}),
+      };
+    },
   };
 
   private seed() {
@@ -542,7 +581,7 @@ export class InMemoryPrismaService {
     );
 
     const demoPlayer = this.createSeedUser('+79990000001', ['player']);
-    const demoPartner = this.createSeedUser('+79990000002', ['player']);
+    const demoPartner = this.createSeedUser('+79990000002', ['player', 'partner']);
     const demoAdmin = this.createSeedUser('+79990000003', ['admin']);
     const reviewPartner = this.createSeedUser('+79990000004', ['player', 'partner']);
 
@@ -584,6 +623,24 @@ export class InMemoryPrismaService {
     };
 
     this.verificationRequests.push(reviewRequest);
+    const seededFile: FileRecord = {
+      id: randomUUID(),
+      originalName: 'inn.pdf',
+      storageBucket: 'local-demo',
+      storageKey: 'demo/review-partner/inn.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 1024,
+      uploadedByUserId: reviewPartner.id,
+      createdAt: now,
+    };
+    this.files.push(seededFile);
+    this.verificationDocuments.push({
+      id: randomUUID(),
+      verificationRequestId: reviewRequest.id,
+      fileId: seededFile.id,
+      documentType: 'registration_certificate',
+      createdAt: now,
+    });
     this.auditLogs.push({
       id: randomUUID(),
       actorUserId: reviewPartner.id,
@@ -1252,6 +1309,13 @@ export class InMemoryPrismaService {
         });
       }
 
+      if (where?.address?.is?.districtId) {
+        items = items.filter((venue) => {
+          const address = this.addresses.find((item) => item.id === venue.addressId);
+          return address?.districtId === where.address.is.districtId;
+        });
+      }
+
       if (orderBy?.createdAt === 'desc') {
         items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       }
@@ -1701,21 +1765,52 @@ export class InMemoryPrismaService {
       return this.withVerificationRequestIncludes(request, include);
     };
 
-    this.verificationRequest.findMany = async ({ where, include }: any) =>
-      this.verificationRequests
-        .filter((request) => {
-          if (where?.status) {
-            return request.status === where.status;
+    this.verificationRequest.findMany = async ({ where, include, orderBy }: any = {}) => {
+      let items = [...this.verificationRequests];
+
+      if (where?.partnerProfileId) {
+        items = items.filter((request) => request.partnerProfileId === where.partnerProfileId);
+      }
+
+      if (where?.status) {
+        if (where.status.in) {
+          items = items.filter((request) => where.status.in.includes(request.status));
+        } else {
+          items = items.filter((request) => request.status === where.status);
+        }
+      }
+
+      if (Array.isArray(orderBy)) {
+        items.sort((left, right) => {
+          for (const rule of orderBy) {
+            const [field, direction] = Object.entries(rule)[0] as [
+              keyof VerificationRequestRecord,
+              'asc' | 'desc',
+            ];
+            const leftValue = left[field];
+            const rightValue = right[field];
+            const leftTime = leftValue instanceof Date ? leftValue.getTime() : leftValue ? new Date(leftValue as any).getTime() : 0;
+            const rightTime = rightValue instanceof Date ? rightValue.getTime() : rightValue ? new Date(rightValue as any).getTime() : 0;
+
+            if (leftTime === rightTime) {
+              continue;
+            }
+
+            return direction === 'asc' ? leftTime - rightTime : rightTime - leftTime;
           }
 
-          return true;
-        })
-        .sort((a, b) => {
+          return 0;
+        });
+      } else {
+        items.sort((a, b) => {
           const aTime = a.submittedAt?.getTime() ?? a.createdAt.getTime();
           const bTime = b.submittedAt?.getTime() ?? b.createdAt.getTime();
           return bTime - aTime;
-        })
-        .map((request) => this.withVerificationRequestIncludes(request, include));
+        });
+      }
+
+      return items.map((request) => this.withVerificationRequestIncludes(request, include));
+    };
 
     this.verificationRequest.findUnique = async ({ where, include }: any) => {
       const request = this.verificationRequests.find((item) => item.id === where.id) ?? null;
@@ -1966,7 +2061,20 @@ export class InMemoryPrismaService {
             ),
           }
         : {}),
-      ...(include?.documents ? { documents: [] } : {}),
+      ...(include?.documents
+        ? {
+            documents: this.verificationDocuments
+              .filter((document) => document.verificationRequestId === request.id)
+              .map((document) => ({
+                ...document,
+                ...(include.documents.include?.file
+                  ? {
+                      file: this.files.find((file) => file.id === document.fileId) ?? null,
+                    }
+                  : {}),
+              })),
+          }
+        : {}),
     };
   }
 

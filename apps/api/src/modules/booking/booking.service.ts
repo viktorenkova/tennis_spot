@@ -5,6 +5,7 @@ import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CourtAvailabilityService } from '../court-schedule/court-availability.service';
 import { CreateBookingRequestDto } from './dto/create-booking-request.dto';
+import { FindBookingOptionsQueryDto } from './dto/find-booking-options-query.dto';
 
 const bookingListInclude = Prisma.validator<Prisma.BookingRequestInclude>()({
   playerProfile: {
@@ -51,6 +52,22 @@ type BookingRequestRecord = Prisma.BookingRequestGetPayload<{
   include: typeof bookingDetailsInclude;
 }>;
 
+const bookingOptionVenueInclude = Prisma.validator<Prisma.VenueInclude>()({
+  address: {
+    include: {
+      city: true,
+      district: true,
+    },
+  },
+  partnerProfile: true,
+  courts: {
+    where: {
+      isActive: true,
+    },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  },
+});
+
 const allowedTransitions: Record<BookingRequestStatus, BookingRequestStatus[]> = {
   draft: ['pending'],
   pending: ['confirmed', 'rejected', 'cancelled_by_player', 'expired'],
@@ -69,6 +86,104 @@ export class BookingService {
     @Inject(CourtAvailabilityService)
     private readonly courtAvailabilityService: CourtAvailabilityService,
   ) {}
+
+  async findBookingOptions(query: FindBookingOptionsQueryDto) {
+    if (!query.bookingDate || !query.timeFrom || !query.timeTo) {
+      return [];
+    }
+
+    this.parseBookingDate(query.bookingDate);
+    this.getDurationMinutes(query.timeFrom, query.timeTo);
+
+    const venues = await this.prisma.venue.findMany({
+      where: {
+        isActive: true,
+        partnerProfile: {
+          is: {
+            verificationStatus: 'verified',
+          },
+        },
+        ...(query.cityId || query.districtId
+          ? {
+              address: {
+                is: {
+                  ...(query.cityId ? { cityId: query.cityId } : {}),
+                  ...(query.districtId ? { districtId: query.districtId } : {}),
+                },
+              },
+            }
+          : {}),
+      },
+      include: bookingOptionVenueInclude,
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    const options = await Promise.all(
+      venues.flatMap((venue) =>
+        venue.courts.map(async (court) => {
+          if (query.surfaceType && court.surfaceType !== query.surfaceType) {
+            return null;
+          }
+
+          if (query.courtType === 'indoor' && !court.isIndoor) {
+            return null;
+          }
+
+          if (query.courtType === 'outdoor' && court.isIndoor) {
+            return null;
+          }
+
+          const availability = await this.courtAvailabilityService.buildAvailability(
+            court.id,
+            query.bookingDate!,
+          );
+
+          const matchingInterval = availability.intervals.find(
+            (interval) =>
+              interval.timeFrom === query.timeFrom &&
+              interval.timeTo === query.timeTo &&
+              interval.isAvailable,
+          );
+
+          if (!matchingInterval) {
+            return null;
+          }
+
+          return {
+            venue: {
+              id: venue.id,
+              name: venue.name,
+              activeCourtsCount: venue.courts.length,
+              address: venue.address,
+            },
+            partnerProfile: {
+              id: venue.partnerProfile.id,
+              legalName: venue.partnerProfile.legalName,
+              brandName: venue.partnerProfile.brandName,
+            },
+            court: {
+              id: court.id,
+              name: court.name,
+              surfaceType: court.surfaceType,
+              isIndoor: court.isIndoor,
+              hasLighting: court.hasLighting,
+            },
+            availableInterval: {
+              bookingDate: query.bookingDate,
+              timeFrom: matchingInterval.timeFrom,
+              timeTo: matchingInterval.timeTo,
+              slotDurationMinutes: matchingInterval.slotDurationMinutes,
+              price: matchingInterval.price,
+            },
+          };
+        }),
+      ),
+    );
+
+    return options.filter((option) => option !== null);
+  }
 
   async createBookingRequest(userId: string, dto: CreateBookingRequestDto) {
     const playerProfile = await this.getPlayerProfileOrThrow(userId);

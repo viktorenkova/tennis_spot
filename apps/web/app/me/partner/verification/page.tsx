@@ -87,6 +87,22 @@ export default function PartnerVerificationPage() {
     void loadData();
   }, [loadData]);
 
+  const requestStatus = request?.status ?? 'draft';
+  const canAddDocument =
+    Boolean(session) &&
+    Boolean(partnerProfile) &&
+    !loading &&
+    requestStatus !== 'approved' &&
+    partnerProfile?.verificationStatus !== 'verified';
+  const canSubmitRequest =
+    Boolean(session) &&
+    Boolean(partnerProfile) &&
+    !loading &&
+    requestStatus !== 'submitted' &&
+    requestStatus !== 'in_review' &&
+    requestStatus !== 'approved' &&
+    partnerProfile?.verificationStatus !== 'verified';
+
   const selectedFileSummary = useMemo(() => {
     if (!selectedFile) {
       return null;
@@ -162,7 +178,7 @@ export default function PartnerVerificationPage() {
 
   return (
     <DemoShell
-      title="Верификация партнёра"
+      title="Верификация партнера"
       description="Проверьте статус профиля, прикрепите документы и отправьте заявку на рассмотрение."
     >
       {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
@@ -189,7 +205,7 @@ export default function PartnerVerificationPage() {
               </StatusBadge>
             </div>
             <p className="session-line">
-              <strong>Партнёр:</strong> {partnerProfile.legalName}
+              <strong>Партнер:</strong> {partnerProfile.legalName}
             </p>
             <p className="muted">
               Этот статус показывает, можно ли отправлять заявку и какое решение уже принято по
@@ -200,7 +216,7 @@ export default function PartnerVerificationPage() {
           <Card>
             <div className="card-header-row">
               <h3>Статус заявки</h3>
-              <StatusBadge tone={getVerificationRequestStatusTone(request?.status ?? 'draft')}>
+              <StatusBadge tone={getVerificationRequestStatusTone(requestStatus)}>
                 {request ? formatVerificationRequestStatus(request.status) : 'Черновик'}
               </StatusBadge>
             </div>
@@ -209,7 +225,8 @@ export default function PartnerVerificationPage() {
               {formatDateTime(request?.submittedAt ?? null, 'Заявка еще не отправлена')}
             </p>
             <p className="session-line">
-              <strong>Комментарий администратора:</strong> {request?.comment ?? 'Пока нет комментария'}
+              <strong>Комментарий администратора:</strong>{' '}
+              {request?.comment ?? 'Пока нет комментария'}
             </p>
           </Card>
         </div>
@@ -228,7 +245,7 @@ export default function PartnerVerificationPage() {
                     event.target.value as (typeof documentTypeOptions)[number]['value'],
                   )
                 }
-                disabled={!session || !partnerProfile}
+                disabled={!canAddDocument}
               >
                 {documentTypeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -253,7 +270,7 @@ export default function PartnerVerificationPage() {
                 type="file"
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                 onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-                disabled={!session || !partnerProfile}
+                disabled={!canAddDocument}
               />
             </label>
 
@@ -264,7 +281,7 @@ export default function PartnerVerificationPage() {
             type="button"
             className="secondary-button"
             onClick={addDocument}
-            disabled={!session || !partnerProfile || loading}
+            disabled={!canAddDocument}
           >
             {loading ? 'Добавляем...' : 'Добавить документ'}
           </button>
@@ -276,6 +293,12 @@ export default function PartnerVerificationPage() {
             Когда профиль сохранен, можно отправить заявку на проверку. Прикрепленные документы
             будут показаны администратору на странице модерации.
           </p>
+          {requestStatus === 'submitted' || requestStatus === 'in_review' ? (
+            <Notice>
+              Заявка уже на модерации. Новые документы прикрепляются к текущей активной заявке, а
+              повторная отправка сейчас недоступна.
+            </Notice>
+          ) : null}
           <div className="info-list compact-list">
             <p>Профиль партнера должен быть сохранен.</p>
             <p>Документы можно добавить заранее или позже, если это потребуется.</p>
@@ -285,7 +308,7 @@ export default function PartnerVerificationPage() {
             type="button"
             className="primary-button"
             onClick={submitRequest}
-            disabled={!session || !partnerProfile || loading}
+            disabled={!canSubmitRequest}
           >
             {loading ? 'Отправляем...' : 'Отправить заявку'}
           </button>

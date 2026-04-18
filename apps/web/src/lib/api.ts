@@ -29,7 +29,7 @@ function resolveApiBaseUrl() {
 
 function getFriendlyNetworkMessage(error: unknown) {
   if (!(error instanceof Error)) {
-    return 'Не удалось выполнить запрос к серверу.';
+    return 'РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РїРѕР»РЅРёС‚СЊ Р·Р°РїСЂРѕСЃ Рє СЃРµСЂРІРµСЂСѓ.';
   }
 
   const message = error.message.toLowerCase();
@@ -41,10 +41,26 @@ function getFriendlyNetworkMessage(error: unknown) {
     message.includes('load failed') ||
     message.includes('econnrefused')
   ) {
-    return 'Не удалось подключиться к серверу. Проверьте, что backend запущен.';
+    return 'РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРєР»СЋС‡РёС‚СЊСЃСЏ Рє СЃРµСЂРІРµСЂСѓ. РџСЂРѕРІРµСЂСЊС‚Рµ, С‡С‚Рѕ backend Р·Р°РїСѓС‰РµРЅ.';
   }
 
-  return 'Не удалось выполнить запрос к серверу.';
+  return 'РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РїРѕР»РЅРёС‚СЊ Р·Р°РїСЂРѕСЃ Рє СЃРµСЂРІРµСЂСѓ.';
+}
+
+function formatFieldErrors(fields?: Record<string, string[]>) {
+  if (!fields) {
+    return null;
+  }
+
+  const messages = Object.values(fields)
+    .flat()
+    .filter(Boolean);
+
+  if (!messages.length) {
+    return null;
+  }
+
+  return Array.from(new Set(messages)).join(' ');
 }
 
 export async function apiRequest<T>(
@@ -82,13 +98,17 @@ export async function apiRequest<T>(
           meta: {},
           error: {
             code: 'INVALID_RESPONSE',
-            message: 'Сервер вернул непонятный ответ. Обновите страницу и попробуйте снова.',
+            message: 'РЎРµСЂРІРµСЂ РІРµСЂРЅСѓР» РЅРµРїРѕРЅСЏС‚РЅС‹Р№ РѕС‚РІРµС‚. РћР±РЅРѕРІРёС‚Рµ СЃС‚СЂР°РЅРёС†Сѓ Рё РїРѕРїСЂРѕР±СѓР№С‚Рµ СЃРЅРѕРІР°.',
           },
         };
       }
     }
 
     if (payload) {
+      if (payload.error) {
+        payload.error.message = formatFieldErrors(payload.error.fields) ?? payload.error.message;
+      }
+
       return payload;
     }
 
@@ -98,7 +118,7 @@ export async function apiRequest<T>(
       meta: {},
       error: {
         code: 'INVALID_RESPONSE',
-        message: 'Сервер вернул пустой или непонятный ответ.',
+        message: 'РЎРµСЂРІРµСЂ РІРµСЂРЅСѓР» РїСѓСЃС‚РѕР№ РёР»Рё РЅРµРїРѕРЅСЏС‚РЅС‹Р№ РѕС‚РІРµС‚.',
       },
     };
   } catch (error) {

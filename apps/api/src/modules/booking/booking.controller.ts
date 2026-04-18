@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -7,6 +7,7 @@ import { Roles } from '../auth/roles.decorator';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 import { BookingService } from './booking.service';
 import { CreateBookingRequestDto } from './dto/create-booking-request.dto';
+import { FindBookingOptionsQueryDto } from './dto/find-booking-options-query.dto';
 import { PartnerBookingActionDto } from './dto/partner-booking-action.dto';
 import { PlayerBookingActionDto } from './dto/player-booking-action.dto';
 
@@ -21,6 +22,11 @@ export class BookingController {
   @Roles('player')
   createBookingRequest(@CurrentUser() user: JwtPayload, @Body() dto: CreateBookingRequestDto) {
     return this.bookingService.createBookingRequest(user.sub, dto);
+  }
+
+  @Get('booking-requests/options')
+  findBookingOptions(@Query() query: FindBookingOptionsQueryDto) {
+    return this.bookingService.findBookingOptions(query);
   }
 
   @Get('booking-requests/me')

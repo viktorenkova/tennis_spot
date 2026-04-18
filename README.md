@@ -46,6 +46,7 @@ packages/
 - partner court schedule templates and exceptions
 - public `GET /courts/{courtId}/availability?date=YYYY-MM-DD`
 - public `GET /venues` catalog for verified and active partner inventory
+- public `GET /booking-requests/options` for подбор подходящих кортов по условиям
 - booking requests with status history, conflict checks and audit logs
 - unified response envelope and unified error envelope
 
@@ -150,6 +151,8 @@ The main seed creates:
 
 Demo login is enabled only when `AUTH_ENABLE_DEMO_LOGIN=true`.
 
+Running `npm run db:seed` is idempotent for the demo baseline: it re-normalizes demo roles, removes drifted partner profiles for `demo-player`, `demo-partner`, `demo-admin`, and recreates a single reviewable `review-partner` verification scenario.
+
 ## Run the apps
 
 Run both:
@@ -195,11 +198,10 @@ Important URLs:
 2. Sign out and sign in as `demo-player`
 3. Open `/me/player` and create the player profile
 4. Open `/booking-requests`
-5. Pick a venue from the public catalog
-6. Pick a court and date
-7. Verify that the page loads court availability and valid intervals
-8. Select one of the allowed intervals
-9. Create the booking request
+5. Set search filters: city or district if needed, date, time range, surface and court type
+6. Click `Подобрать варианты`
+7. Choose one of the suitable court cards
+8. Fill the short request form and submit the booking request
 10. Sign out and sign in as `demo-partner`
 11. Open `/me/partner/booking-requests`
 12. Confirm, reject, cancel or complete the request

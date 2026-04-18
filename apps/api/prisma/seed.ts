@@ -1,10 +1,4 @@
-import {
-  PartnerTypeKey,
-  Prisma,
-  PrismaClient,
-  RoleKey,
-  VerificationRequestStatus,
-} from '@prisma/client';
+import { PartnerTypeKey, Prisma, PrismaClient, RoleKey } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -49,7 +43,7 @@ const demoUsers = {
   demoPartner: {
     phone: '+79990000002',
     email: 'demo-partner@tennis-spot.local',
-    roles: ['player'] as RoleKey[],
+    roles: ['player', 'partner'] as RoleKey[],
   },
   demoAdmin: {
     phone: '+79990000003',
@@ -69,26 +63,30 @@ async function main() {
   const partnerTypeMap = await seedPartnerTypes();
   const cityMap = await seedCities();
 
-  const demoPlayer = await ensureUser(
-    demoUsers.demoPlayer.phone,
-    demoUsers.demoPlayer.roles,
-    demoUsers.demoPlayer.email,
-  );
-  const demoPartner = await ensureUser(
-    demoUsers.demoPartner.phone,
-    demoUsers.demoPartner.roles,
-    demoUsers.demoPartner.email,
-  );
-  const demoAdmin = await ensureUser(
-    demoUsers.demoAdmin.phone,
-    demoUsers.demoAdmin.roles,
-    demoUsers.demoAdmin.email,
-  );
-  const reviewPartnerUser = await ensureUser(
-    demoUsers.reviewPartner.phone,
-    demoUsers.reviewPartner.roles,
-    demoUsers.reviewPartner.email,
-  );
+  const demoPlayer = await ensureUser({
+    phone: demoUsers.demoPlayer.phone,
+    email: demoUsers.demoPlayer.email,
+    roles: demoUsers.demoPlayer.roles,
+    roleMap,
+  });
+  const demoPartner = await ensureUser({
+    phone: demoUsers.demoPartner.phone,
+    email: demoUsers.demoPartner.email,
+    roles: demoUsers.demoPartner.roles,
+    roleMap,
+  });
+  const demoAdmin = await ensureUser({
+    phone: demoUsers.demoAdmin.phone,
+    email: demoUsers.demoAdmin.email,
+    roles: demoUsers.demoAdmin.roles,
+    roleMap,
+  });
+  const reviewPartnerUser = await ensureUser({
+    phone: demoUsers.reviewPartner.phone,
+    email: demoUsers.reviewPartner.email,
+    roles: demoUsers.reviewPartner.roles,
+    roleMap,
+  });
 
   await prisma.adminProfile.upsert({
     where: { userId: demoAdmin.id },
@@ -99,24 +97,15 @@ async function main() {
     },
   });
 
-  await prisma.userRole.upsert({
-    where: {
-      userId_roleId: {
-        userId: demoAdmin.id,
-        roleId: roleMap.admin.id,
-      },
-    },
-    update: {},
-    create: {
-      userId: demoAdmin.id,
-      roleId: roleMap.admin.id,
-    },
-  });
-
   await ensureDefaultSettings(demoPlayer.id);
   await ensureDefaultSettings(demoPartner.id);
   await ensureDefaultSettings(demoAdmin.id);
   await ensureDefaultSettings(reviewPartnerUser.id);
+
+  // Keep these demo accounts clean so smoke flows do not depend on historical DB drift.
+  await resetPartnerState(demoPlayer.id);
+  await resetPartnerState(demoPartner.id);
+  await resetPartnerState(demoAdmin.id);
 
   await seedReviewablePartner({
     userId: reviewPartnerUser.id,
@@ -192,7 +181,9 @@ async function seedCities() {
             name: districtName,
           },
         },
-        update: {},
+        update: {
+          slug: slugify(districtName),
+        },
         create: {
           cityId: city.id,
           name: districtName,
@@ -215,43 +206,62 @@ async function seedCities() {
   return map;
 }
 
-async function ensureUser(phone: string, roleKeys: RoleKey[], email?: string) {
+async function ensureUser(params: {
+  phone: string;
+  email?: string;
+  roles: RoleKey[];
+  roleMap: Record<RoleKey, { id: string }>;
+}) {
   const user = await prisma.user.upsert({
-    where: { phone },
+    where: { phone: params.phone },
     update: {
-      email,
+      email: params.email,
       status: 'active',
     },
     create: {
-      phone,
-      email,
+      phone: params.phone,
+      email: params.email,
       status: 'active',
     },
   });
 
   await ensureDefaultSettings(user.id);
+  await ensureExactRoles(user.id, params.roles, params.roleMap);
 
-  for (const roleKey of roleKeys) {
-    const role = await prisma.role.findUniqueOrThrow({
-      where: { key: roleKey },
-    });
+  return user;
+}
 
+async function ensureExactRoles(
+  userId: string,
+  desiredRoles: RoleKey[],
+  roleMap: Record<RoleKey, { id: string }>,
+) {
+  const desiredRoleIds = desiredRoles.map((roleKey) => roleMap[roleKey].id);
+
+  await prisma.userRole.deleteMany({
+    where: {
+      userId,
+      roleId: {
+        notIn: desiredRoleIds,
+      },
+    },
+  });
+
+  for (const roleKey of desiredRoles) {
     await prisma.userRole.upsert({
       where: {
         userId_roleId: {
-          userId: user.id,
-          roleId: role.id,
+          userId,
+          roleId: roleMap[roleKey].id,
         },
       },
       update: {},
       create: {
-        userId: user.id,
-        roleId: role.id,
+        userId,
+        roleId: roleMap[roleKey].id,
       },
     });
   }
-
-  return user;
 }
 
 async function ensureDefaultSettings(userId: string) {
@@ -264,28 +274,66 @@ async function ensureDefaultSettings(userId: string) {
   });
 }
 
+async function resetPartnerState(userId: string) {
+  const partnerProfile = await prisma.partnerProfile.findUnique({
+    where: { ownerUserId: userId },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!partnerProfile) {
+    return;
+  }
+
+  const verificationRequests = await prisma.verificationRequest.findMany({
+    where: {
+      partnerProfileId: partnerProfile.id,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (verificationRequests.length) {
+    await prisma.verificationDocument.deleteMany({
+      where: {
+        verificationRequestId: {
+          in: verificationRequests.map((request) => request.id),
+        },
+      },
+    });
+  }
+
+  await prisma.verificationRequest.deleteMany({
+    where: {
+      partnerProfileId: partnerProfile.id,
+    },
+  });
+
+  await prisma.partnerProfileType.deleteMany({
+    where: {
+      partnerProfileId: partnerProfile.id,
+    },
+  });
+
+  await prisma.partnerProfile.delete({
+    where: {
+      id: partnerProfile.id,
+    },
+  });
+}
+
 async function seedReviewablePartner(params: {
   userId: string;
   cityId: string;
   districtId: string;
   clubTypeId: string;
 }) {
-  const partnerProfile = await prisma.partnerProfile.upsert({
-    where: { ownerUserId: params.userId },
-    update: {
-      legalName: 'Review Club LLC',
-      brandName: 'Review Club',
-      description: 'Seeded partner profile for admin verification review.',
-      contactPhone: '+79990000004',
-      contactEmail: 'review@tennis-spot.local',
-      taxId: '7701234567',
-      legalAddress: 'Москва, Пресненская набережная, 12',
-      actualAddress: 'Москва, Пресненская набережная, 12',
-      cityId: params.cityId,
-      districtId: params.districtId,
-      verificationStatus: 'pending_verification',
-    },
-    create: {
+  await resetPartnerState(params.userId);
+
+  const partnerProfile = await prisma.partnerProfile.create({
+    data: {
       ownerUserId: params.userId,
       legalName: 'Review Club LLC',
       brandName: 'Review Club',
@@ -298,12 +346,6 @@ async function seedReviewablePartner(params: {
       cityId: params.cityId,
       districtId: params.districtId,
       verificationStatus: 'pending_verification',
-    },
-  });
-
-  await prisma.partnerProfileType.deleteMany({
-    where: {
-      partnerProfileId: partnerProfile.id,
     },
   });
 
@@ -335,27 +377,21 @@ async function seedReviewablePartner(params: {
     },
   });
 
-  const verificationRequest = await upsertVerificationRequest({
-    partnerProfileId: partnerProfile.id,
-    status: 'submitted',
-  });
-
-  const existingDoc = await prisma.verificationDocument.findFirst({
-    where: {
-      verificationRequestId: verificationRequest.id,
-      fileId: file.id,
+  const verificationRequest = await prisma.verificationRequest.create({
+    data: {
+      partnerProfileId: partnerProfile.id,
+      status: 'submitted',
+      submittedAt: new Date(),
     },
   });
 
-  if (!existingDoc) {
-    await prisma.verificationDocument.create({
-      data: {
-        verificationRequestId: verificationRequest.id,
-        fileId: file.id,
-        documentType: 'registration_certificate',
-      },
-    });
-  }
+  await prisma.verificationDocument.create({
+    data: {
+      verificationRequestId: verificationRequest.id,
+      fileId: file.id,
+      documentType: 'registration_certificate',
+    },
+  });
 
   await prisma.auditLog.create({
     data: {
@@ -367,41 +403,6 @@ async function seedReviewablePartner(params: {
       metadata: {
         status: 'submitted',
       } as Prisma.InputJsonValue,
-    },
-  });
-}
-
-async function upsertVerificationRequest(params: {
-  partnerProfileId: string;
-  status: VerificationRequestStatus;
-}) {
-  const existing = await prisma.verificationRequest.findFirst({
-    where: {
-      partnerProfileId: params.partnerProfileId,
-      status: {
-        in: ['submitted', 'in_review', 'draft', 'needs_correction'],
-      },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
-
-  if (existing) {
-    return prisma.verificationRequest.update({
-      where: { id: existing.id },
-      data: {
-        status: params.status,
-        submittedAt: params.status === 'submitted' ? new Date() : existing.submittedAt,
-      },
-    });
-  }
-
-  return prisma.verificationRequest.create({
-    data: {
-      partnerProfileId: params.partnerProfileId,
-      status: params.status,
-      submittedAt: params.status === 'submitted' ? new Date() : null,
     },
   });
 }

@@ -8,6 +8,7 @@ import { InMemoryPrismaService } from './in-memory-prisma';
 
 describe('P1 review and booking slices (e2e)', () => {
   let app: INestApplication;
+  let prisma: InMemoryPrismaService;
 
   beforeAll(() => {
     process.env.JWT_ACCESS_SECRET = 'test-access-secret';
@@ -18,11 +19,13 @@ describe('P1 review and booking slices (e2e)', () => {
   });
 
   beforeEach(async () => {
+    prisma = new InMemoryPrismaService();
+
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(PrismaService)
-      .useValue(new InMemoryPrismaService())
+      .useValue(prisma)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -76,6 +79,29 @@ describe('P1 review and booking slices (e2e)', () => {
         cityId,
         districtId,
         partnerTypes: ['club'],
+      });
+  }
+
+  function addVerificationDocument(
+    accessToken: string,
+    overrides: Partial<{
+      documentType: string;
+      originalName: string;
+      storageKey: string;
+      mimeType: string;
+      sizeBytes: number;
+    }> = {},
+  ) {
+    return request(app.getHttpServer())
+      .post('/api/v1/partner/verification/documents')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        documentType: 'registration_certificate',
+        originalName: 'registration.pdf',
+        storageKey: `demo/${Date.now()}-registration.pdf`,
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        ...overrides,
       });
   }
 
@@ -640,6 +666,44 @@ describe('P1 review and booking slices (e2e)', () => {
     expect(Number(availabilityResponse.body.data.intervals[0].price)).toBe(2500);
   });
 
+  it('returns matching booking options by filters and excludes unavailable courts', async () => {
+    const { partnerToken, location, courtId } = await prepareVerifiedInventory();
+
+    const matchingResponse = await request(app.getHttpServer())
+      .get(
+        `/api/v1/booking-requests/options?cityId=${location.cityId}&districtId=${location.districtId}&bookingDate=2026-04-20&timeFrom=18:00&timeTo=19:30&surfaceType=hard&courtType=indoor`,
+      )
+      .expect(200);
+
+    expect(matchingResponse.body.data).toHaveLength(1);
+    expect(matchingResponse.body.data[0].court.id).toBe(courtId);
+    expect(matchingResponse.body.data[0].court.isIndoor).toBe(true);
+
+    const wrongCourtTypeResponse = await request(app.getHttpServer())
+      .get(
+        `/api/v1/booking-requests/options?cityId=${location.cityId}&bookingDate=2026-04-20&timeFrom=18:00&timeTo=19:30&courtType=outdoor`,
+      )
+      .expect(200);
+
+    expect(wrongCourtTypeResponse.body.data).toHaveLength(0);
+
+    await createScheduleException(partnerToken, courtId, {
+      exceptionType: 'blocked',
+      date: '2026-04-20',
+      timeFrom: '18:00',
+      timeTo: '19:30',
+      comment: 'Blocked discovery interval',
+    }).expect(201);
+
+    const blockedResponse = await request(app.getHttpServer())
+      .get(
+        `/api/v1/booking-requests/options?cityId=${location.cityId}&bookingDate=2026-04-20&timeFrom=18:00&timeTo=19:30&courtType=indoor`,
+      )
+      .expect(200);
+
+    expect(blockedResponse.body.data).toHaveLength(0);
+  });
+
   it('does not allow a non-owner to manage foreign court schedules', async () => {
     const { courtId } = await prepareVerifiedInventory();
     const foreignPartnerToken = await demoLogin('review-partner');
@@ -953,6 +1017,26 @@ describe('P1 review and booking slices (e2e)', () => {
     expect(response.body.error.code).toBe('BOOKING_REQUEST_NOT_FOUND');
   });
 
+  it('returns complete validation feedback for an empty booking request payload', async () => {
+    const playerToken = await demoLogin('demo-player');
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/booking-requests')
+      .set('Authorization', `Bearer ${playerToken}`)
+      .send({})
+      .expect(400);
+
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    expect(response.body.error.fields).toMatchObject({
+      venueId: expect.any(Array),
+      courtId: expect.any(Array),
+      bookingDate: expect.any(Array),
+      timeFrom: expect.any(Array),
+      timeTo: expect.any(Array),
+      playersCount: expect.any(Array),
+    });
+  });
+
   it('returns 403 for non-admin access to admin endpoints', async () => {
     const playerToken = await demoLogin('demo-player');
 
@@ -962,6 +1046,29 @@ describe('P1 review and booking slices (e2e)', () => {
       .expect(403);
 
     expect(response.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('keeps demo account role baseline reproducible', async () => {
+    const expectations = {
+      'demo-player': ['player'],
+      'demo-partner': ['partner', 'player'],
+      'demo-admin': ['admin'],
+      'review-partner': ['partner', 'player'],
+    } as const;
+
+    for (const [userKey, expectedRoles] of Object.entries(expectations)) {
+      const token = await demoLogin(userKey as keyof typeof expectations);
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      const actualRoles = response.body.data.roles
+        .map((item: any) => item.role.key)
+        .sort();
+
+      expect(actualRoles).toEqual([...expectedRoles].sort());
+    }
   });
 
   it('returns 400 when reject is sent without comment', async () => {
@@ -992,6 +1099,170 @@ describe('P1 review and booking slices (e2e)', () => {
       .expect(404);
 
     expect(response.body.error.code).toBe('VERIFICATION_REQUEST_NOT_FOUND');
+  });
+
+  it('adds documents to an active submitted verification request without creating a silent draft', async () => {
+    const partnerToken = await demoLogin('demo-partner');
+    const location = await getDemoLocation();
+
+    await createPartnerProfile(partnerToken, location.cityId, location.districtId).expect(201);
+    await addVerificationDocument(partnerToken).expect(201);
+
+    const submitResponse = await request(app.getHttpServer())
+      .post('/api/v1/partner/verification/submit')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .send({})
+      .expect(201);
+
+    const activeRequestId = submitResponse.body.data.id as string;
+    const partnerProfileId = submitResponse.body.data.partnerProfile.id as string;
+
+    const secondDocumentResponse = await addVerificationDocument(partnerToken, {
+      documentType: 'tax_document',
+      originalName: 'tax.pdf',
+      storageKey: 'demo/tax-document.pdf',
+    }).expect(201);
+
+    expect(secondDocumentResponse.body.data.verificationRequestId).toBe(activeRequestId);
+
+    const myRequestResponse = await request(app.getHttpServer())
+      .get('/api/v1/partner/verification/me')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .expect(200);
+
+    expect(myRequestResponse.body.data.id).toBe(activeRequestId);
+    expect(myRequestResponse.body.data.status).toBe('submitted');
+    expect(myRequestResponse.body.data.documents).toHaveLength(2);
+
+    const requests = await prisma.verificationRequest.findMany({
+      where: {
+        partnerProfileId,
+      },
+    });
+
+    expect(requests).toHaveLength(1);
+  });
+
+  it('returns the approved verification request even if a newer stale draft exists', async () => {
+    const partnerToken = await demoLogin('demo-partner');
+    const adminToken = await demoLogin('demo-admin');
+    const location = await getDemoLocation();
+
+    await createPartnerProfile(partnerToken, location.cityId, location.districtId).expect(201);
+    await addVerificationDocument(partnerToken).expect(201);
+
+    const submitResponse = await request(app.getHttpServer())
+      .post('/api/v1/partner/verification/submit')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .send({})
+      .expect(201);
+
+    const approvedResponse = await approveVerificationRequestForPhone(adminToken, '+79990000002');
+    const partnerProfileId = submitResponse.body.data.partnerProfile.id as string;
+
+    await prisma.verificationRequest.create({
+      data: {
+        partnerProfileId,
+        status: 'draft',
+      },
+    });
+
+    const myRequestResponse = await request(app.getHttpServer())
+      .get('/api/v1/partner/verification/me')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .expect(200);
+
+    expect(approvedResponse.body.data.status).toBe('approved');
+    expect(myRequestResponse.body.data.id).toBe(approvedResponse.body.data.id);
+    expect(myRequestResponse.body.data.status).toBe('approved');
+  });
+
+  it('keeps verification request and partner status consistent through needs-correction resubmission', async () => {
+    const partnerToken = await demoLogin('demo-partner');
+    const adminToken = await demoLogin('demo-admin');
+    const location = await getDemoLocation();
+
+    await createPartnerProfile(partnerToken, location.cityId, location.districtId).expect(201);
+    await addVerificationDocument(partnerToken).expect(201);
+
+    const submitResponse = await request(app.getHttpServer())
+      .post('/api/v1/partner/verification/submit')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .send({})
+      .expect(201);
+
+    const requestId = submitResponse.body.data.id as string;
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/verification-requests/${requestId}/needs-correction`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        comment: 'Please upload a clearer document.',
+      })
+      .expect(201);
+
+    const profileAfterCorrection = await request(app.getHttpServer())
+      .get('/api/v1/partner/profile/me')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .expect(200);
+
+    expect(profileAfterCorrection.body.data.verificationStatus).toBe('draft');
+
+    const requestAfterCorrection = await request(app.getHttpServer())
+      .get('/api/v1/partner/verification/me')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .expect(200);
+
+    expect(requestAfterCorrection.body.data.id).toBe(requestId);
+    expect(requestAfterCorrection.body.data.status).toBe('needs_correction');
+
+    const addDocumentResponse = await addVerificationDocument(partnerToken, {
+      documentType: 'charter',
+      originalName: 'updated-charter.pdf',
+      storageKey: 'demo/updated-charter.pdf',
+    }).expect(201);
+
+    expect(addDocumentResponse.body.data.verificationRequestId).toBe(requestId);
+
+    const resubmitResponse = await request(app.getHttpServer())
+      .post('/api/v1/partner/verification/submit')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .send({})
+      .expect(201);
+
+    expect(resubmitResponse.body.data.id).toBe(requestId);
+    expect(resubmitResponse.body.data.status).toBe('submitted');
+
+    const profileAfterResubmit = await request(app.getHttpServer())
+      .get('/api/v1/partner/profile/me')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .expect(200);
+
+    expect(profileAfterResubmit.body.data.verificationStatus).toBe('pending_verification');
+  });
+
+  it('forbids admin self-review for their own partner verification request', async () => {
+    const adminToken = await demoLogin('demo-admin');
+    const location = await getDemoLocation();
+
+    await createPartnerProfile(adminToken, location.cityId, location.districtId).expect(201);
+    await addVerificationDocument(adminToken).expect(201);
+
+    const submitResponse = await request(app.getHttpServer())
+      .post('/api/v1/partner/verification/submit')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({})
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .post(`/api/v1/admin/verification-requests/${submitResponse.body.data.id}/approve`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        comment: 'Trying to approve my own request.',
+      })
+      .expect(403);
+
+    expect(response.body.error.code).toBe('FORBIDDEN');
   });
 
   it('returns 409 for duplicate finalized review action', async () => {
