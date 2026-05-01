@@ -13,7 +13,7 @@ type NotificationItem = {
   type: string;
   title: string;
   body: string;
-  relatedEntityType: 'verification_request' | 'booking_request' | 'match_request' | null;
+  relatedEntityType: 'verification_request' | 'booking_request' | 'match_request' | 'complaint' | null;
   relatedEntityId: string | null;
   isRead: boolean;
   createdAt: string;
@@ -39,6 +39,10 @@ function getRelatedHref(notification: NotificationItem) {
 
   if (notification.relatedEntityType === 'match_request') {
     return '/match-requests';
+  }
+
+  if (notification.relatedEntityType === 'complaint') {
+    return '/complaints';
   }
 
   if (notification.type === 'verification_submitted') {

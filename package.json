@@ -19,7 +19,8 @@
     "db:migrate": "npm run prisma:migrate --workspace @tennis-spot/api",
     "db:deploy": "npm run prisma:deploy --workspace @tennis-spot/api",
     "db:seed": "npm run prisma:seed --workspace @tennis-spot/api",
-    "db:seed-admin": "npm run prisma:seed-admin --workspace @tennis-spot/api"
+    "db:seed-admin": "npm run prisma:seed-admin --workspace @tennis-spot/api",
+    "smoke:real-db": "npm run smoke:real-db --workspace @tennis-spot/api"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",

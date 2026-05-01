@@ -201,13 +201,35 @@ export class VerificationService {
       });
     }
 
-    return (
+    const request =
       this.selectLatestRequestByStatuses(requests, ['draft', 'needs_correction']) ??
-      this.createDraftRequest(
+      (await this.createDraftRequest(
         partnerProfileId,
         partnerVerificationStatus === 'rejected' ? 'draft' : undefined,
-      )
-    );
+      ));
+
+    await this.ensureRequestHasDocuments(request.id);
+    return request;
+  }
+
+  private async ensureRequestHasDocuments(requestId: string) {
+    const documentsCount = await this.prisma.verificationDocument.count({
+      where: {
+        verificationRequestId: requestId,
+      },
+    });
+
+    if (documentsCount > 0) {
+      return;
+    }
+
+    throw new AppError(HttpStatus.CONFLICT, {
+      code: ERROR_CODES.verificationRequestDocumentRequired,
+      message: 'Перед отправкой заявки на верификацию добавьте хотя бы один документ.',
+      fields: {
+        documents: ['Добавьте хотя бы один документ перед отправкой заявки.'],
+      },
+    });
   }
 
   private async listRequests(partnerProfileId: string) {

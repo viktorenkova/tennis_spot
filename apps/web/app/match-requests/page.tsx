@@ -41,6 +41,15 @@ type MatchRequest = {
   opponent: {
     playerProfile: PlayerProfile | null;
   };
+  relatedBooking: {
+    id: string;
+    status: string;
+    venueName: string | null;
+    courtName: string | null;
+    bookingDate: string;
+    timeFrom: string;
+    timeTo: string;
+  } | null;
   relatedBookingRequest: {
     id: string;
     status: string;
@@ -77,7 +86,90 @@ function getPlayersCountForFormat(format: string) {
 }
 
 function getMatchBookingLabel(status: string) {
-  return status === 'confirmed' ? 'Бронь подтверждена' : 'Бронь создана';
+  return `Бронь: ${formatBookingRequestStatus(status)}`;
+}
+
+function getRelatedBooking(matchRequest: MatchRequest) {
+  if (matchRequest.relatedBooking) {
+    return matchRequest.relatedBooking;
+  }
+
+  if (!matchRequest.relatedBookingRequest) {
+    return null;
+  }
+
+  return {
+    id: matchRequest.relatedBookingRequest.id,
+    status: matchRequest.relatedBookingRequest.status,
+    venueName: matchRequest.relatedBookingRequest.venue?.name ?? null,
+    courtName: matchRequest.relatedBookingRequest.court?.name ?? null,
+    bookingDate: matchRequest.relatedBookingRequest.bookingDate,
+    timeFrom: matchRequest.relatedBookingRequest.timeFrom,
+    timeTo: matchRequest.relatedBookingRequest.timeTo,
+  };
+}
+
+function MatchBookingBlock({
+  matchRequest,
+  opponentProfile,
+  onCreateBooking,
+  onOpenBooking,
+}: {
+  matchRequest: MatchRequest;
+  opponentProfile: PlayerProfile | null;
+  onCreateBooking: (matchRequest: MatchRequest, opponentProfile: PlayerProfile | null) => void;
+  onOpenBooking: (bookingId: string) => void;
+}) {
+  const relatedBooking = getRelatedBooking(matchRequest);
+
+  if (matchRequest.status !== 'accepted' && !relatedBooking) {
+    return null;
+  }
+
+  if (!relatedBooking) {
+    return (
+      <div className="match-booking-panel">
+        <div>
+          <strong>Бронирование</strong>
+          <span>
+            Выберите подходящий корт и отправьте заявку партнёру. Бронь будет связана с этим
+            вызовом.
+          </span>
+        </div>
+        <button
+          type="button"
+          className="primary-button"
+          onClick={() => onCreateBooking(matchRequest, opponentProfile)}
+        >
+          Оформить бронь для этой игры
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="match-booking-panel">
+      <div>
+        <strong>Бронь для игры</strong>
+        <span>{formatBookingRequestStatus(relatedBooking.status)}</span>
+        <span>
+          {relatedBooking.venueName ?? 'Площадка уточняется'} /{' '}
+          {relatedBooking.courtName ?? 'корт уточняется'}
+        </span>
+        <span>
+          {formatDate(relatedBooking.bookingDate)} • {relatedBooking.timeFrom} -{' '}
+          {relatedBooking.timeTo}
+        </span>
+      </div>
+      <button
+        type="button"
+        className="secondary-button"
+        onClick={() => onOpenBooking(relatedBooking.id)}
+      >
+        Перейти к заявке
+      </button>
+    </div>
+  );
 }
 
 export default function MatchRequestsPage() {
@@ -155,9 +247,18 @@ export default function MatchRequestsPage() {
       timeTo: matchRequest.proposedTimeTo,
       playersCount: String(getPlayersCountForFormat(matchRequest.format)),
       opponentName: getPlayerName(opponentProfile),
+      format: formatMatchRequestFormat(matchRequest.format),
     });
 
     router.push(`/booking-requests?${params.toString()}`);
+  }
+
+  function openBookingRequest(bookingId: string) {
+    router.push(`/booking-requests?bookingRequestId=${bookingId}`);
+  }
+
+  function openComplaintForMatch(matchRequestId: string) {
+    router.push(`/complaints?relatedMatchRequestId=${matchRequestId}`);
   }
 
   return (
@@ -184,25 +285,42 @@ export default function MatchRequestsPage() {
           ) : (
             <div className="list-stack">
               {incoming.map((matchRequest) => (
-                <article key={matchRequest.id} className="list-row list-row-detailed">
-                  <div>
-                    <strong>{getPlayerName(matchRequest.initiator.playerProfile)}</strong>
-                    <span>{getLocation(matchRequest.initiator.playerProfile)}</span>
-                    <span>
-                      {formatDate(matchRequest.proposedDate)} • {matchRequest.proposedTimeFrom} -{' '}
-                      {matchRequest.proposedTimeTo} • {formatMatchRequestFormat(matchRequest.format)}
-                    </span>
-                    <span>{matchRequest.message ?? 'Сообщение не указано'}</span>
+                <article key={matchRequest.id} className="list-row list-row-detailed match-card">
+                  <div className="match-card-main">
+                    <div>
+                      <strong>{getPlayerName(matchRequest.initiator.playerProfile)}</strong>
+                      <span>{getLocation(matchRequest.initiator.playerProfile)}</span>
+                      <span>
+                        {formatDate(matchRequest.proposedDate)} • {matchRequest.proposedTimeFrom} -{' '}
+                        {matchRequest.proposedTimeTo} •{' '}
+                        {formatMatchRequestFormat(matchRequest.format)} • Игроков:{' '}
+                        {getPlayersCountForFormat(matchRequest.format)}
+                      </span>
+                      <span>{matchRequest.message ?? 'Сообщение не указано'}</span>
+                    </div>
+                    <MatchBookingBlock
+                      matchRequest={matchRequest}
+                      opponentProfile={matchRequest.initiator.playerProfile}
+                      onCreateBooking={openBookingFlow}
+                      onOpenBooking={openBookingRequest}
+                    />
                   </div>
                   <div className="button-row">
                     <StatusBadge tone={getMatchRequestStatusTone(matchRequest.status)}>
                       {formatMatchRequestStatus(matchRequest.status)}
                     </StatusBadge>
-                    {matchRequest.relatedBookingRequest ? (
-                      <StatusBadge tone={getBookingRequestStatusTone(matchRequest.relatedBookingRequest.status)}>
-                        {getMatchBookingLabel(matchRequest.relatedBookingRequest.status)}
+                    {getRelatedBooking(matchRequest) ? (
+                      <StatusBadge tone={getBookingRequestStatusTone(getRelatedBooking(matchRequest)!.status)}>
+                        {getMatchBookingLabel(getRelatedBooking(matchRequest)!.status)}
                       </StatusBadge>
                     ) : null}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => openComplaintForMatch(matchRequest.id)}
+                    >
+                      Пожаловаться
+                    </button>
                     {matchRequest.status === 'pending' ? (
                       <>
                         <button
@@ -223,22 +341,6 @@ export default function MatchRequestsPage() {
                         </button>
                       </>
                     ) : null}
-                    {matchRequest.status === 'accepted' && !matchRequest.relatedBookingRequest ? (
-                      <button
-                        type="button"
-                        className="primary-button"
-                        onClick={() =>
-                          openBookingFlow(matchRequest, matchRequest.initiator.playerProfile)
-                        }
-                      >
-                        Оформить бронь
-                      </button>
-                    ) : null}
-                    {matchRequest.relatedBookingRequest ? (
-                      <span className="muted">
-                        {formatBookingRequestStatus(matchRequest.relatedBookingRequest.status)}
-                      </span>
-                    ) : null}
                   </div>
                 </article>
               ))}
@@ -256,25 +358,42 @@ export default function MatchRequestsPage() {
           ) : (
             <div className="list-stack">
               {outgoing.map((matchRequest) => (
-                <article key={matchRequest.id} className="list-row list-row-detailed">
-                  <div>
-                    <strong>{getPlayerName(matchRequest.opponent.playerProfile)}</strong>
-                    <span>{getLocation(matchRequest.opponent.playerProfile)}</span>
-                    <span>
-                      {formatDate(matchRequest.proposedDate)} • {matchRequest.proposedTimeFrom} -{' '}
-                      {matchRequest.proposedTimeTo} • {formatMatchRequestFormat(matchRequest.format)}
-                    </span>
-                    <span>{matchRequest.message ?? 'Сообщение не указано'}</span>
+                <article key={matchRequest.id} className="list-row list-row-detailed match-card">
+                  <div className="match-card-main">
+                    <div>
+                      <strong>{getPlayerName(matchRequest.opponent.playerProfile)}</strong>
+                      <span>{getLocation(matchRequest.opponent.playerProfile)}</span>
+                      <span>
+                        {formatDate(matchRequest.proposedDate)} • {matchRequest.proposedTimeFrom} -{' '}
+                        {matchRequest.proposedTimeTo} •{' '}
+                        {formatMatchRequestFormat(matchRequest.format)} • Игроков:{' '}
+                        {getPlayersCountForFormat(matchRequest.format)}
+                      </span>
+                      <span>{matchRequest.message ?? 'Сообщение не указано'}</span>
+                    </div>
+                    <MatchBookingBlock
+                      matchRequest={matchRequest}
+                      opponentProfile={matchRequest.opponent.playerProfile}
+                      onCreateBooking={openBookingFlow}
+                      onOpenBooking={openBookingRequest}
+                    />
                   </div>
                   <div className="button-row">
                     <StatusBadge tone={getMatchRequestStatusTone(matchRequest.status)}>
                       {formatMatchRequestStatus(matchRequest.status)}
                     </StatusBadge>
-                    {matchRequest.relatedBookingRequest ? (
-                      <StatusBadge tone={getBookingRequestStatusTone(matchRequest.relatedBookingRequest.status)}>
-                        {getMatchBookingLabel(matchRequest.relatedBookingRequest.status)}
+                    {getRelatedBooking(matchRequest) ? (
+                      <StatusBadge tone={getBookingRequestStatusTone(getRelatedBooking(matchRequest)!.status)}>
+                        {getMatchBookingLabel(getRelatedBooking(matchRequest)!.status)}
                       </StatusBadge>
                     ) : null}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => openComplaintForMatch(matchRequest.id)}
+                    >
+                      Пожаловаться
+                    </button>
                     {matchRequest.status === 'pending' ? (
                       <button
                         type="button"
@@ -284,22 +403,6 @@ export default function MatchRequestsPage() {
                       >
                         Отменить
                       </button>
-                    ) : null}
-                    {matchRequest.status === 'accepted' && !matchRequest.relatedBookingRequest ? (
-                      <button
-                        type="button"
-                        className="primary-button"
-                        onClick={() =>
-                          openBookingFlow(matchRequest, matchRequest.opponent.playerProfile)
-                        }
-                      >
-                        Оформить бронь
-                      </button>
-                    ) : null}
-                    {matchRequest.relatedBookingRequest ? (
-                      <span className="muted">
-                        {formatBookingRequestStatus(matchRequest.relatedBookingRequest.status)}
-                      </span>
                     ) : null}
                   </div>
                 </article>

@@ -577,6 +577,28 @@ a:focus-visible {
   background: rgba(248, 223, 179, 0.32);
 }
 
+.match-card {
+  gap: 16px;
+}
+
+.match-card-main,
+.match-booking-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.match-booking-panel {
+  padding: 12px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 250, 242, 0.78);
+}
+
+.match-booking-panel > div {
+  display: grid;
+  gap: 4px;
+}
+
 .section-heading,
 .row-title,
 .row-actions {

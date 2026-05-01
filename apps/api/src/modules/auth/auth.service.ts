@@ -164,7 +164,7 @@ export class AuthService {
 
   async logout(dto: LogoutDto) {
     if (!dto.refreshToken) {
-      return { success: true };
+      return { loggedOut: true };
     }
 
     try {
@@ -182,10 +182,10 @@ export class AuthService {
         },
       });
     } catch {
-      return { success: true };
+      return { loggedOut: true };
     }
 
-    return { success: true };
+    return { loggedOut: true };
   }
 
   async me(userId: string) {

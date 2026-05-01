@@ -62,6 +62,21 @@ enum MatchRequestFormat {
   doubles
 }
 
+enum ComplaintType {
+  no_show
+  late_cancel
+  bad_behavior
+  court_issue
+  other
+}
+
+enum ComplaintStatus {
+  pending
+  in_review
+  resolved
+  rejected
+}
+
 enum ScheduleExceptionType {
   closed
   custom_hours
@@ -84,12 +99,15 @@ enum NotificationType {
   match_request_declined
   match_request_cancelled
   match_booking_created
+  complaint_created
+  complaint_status_updated
 }
 
 enum NotificationRelatedEntityType {
   verification_request
   booking_request
   match_request
+  complaint
 }
 
 enum RoleKey {
@@ -127,6 +145,8 @@ model User {
   notifications  Notification[]
   initiatedMatchRequests MatchRequest[] @relation("match_request_initiator")
   receivedMatchRequests  MatchRequest[] @relation("match_request_opponent")
+  createdComplaints Complaint[] @relation("complaint_created_by_user")
+  targetedComplaints Complaint[] @relation("complaint_target_user")
 
   @@map("users")
 }
@@ -508,6 +528,7 @@ model BookingRequest {
   court             Court                @relation(fields: [courtId], references: [id], onDelete: Cascade)
   relatedMatchRequest MatchRequest?      @relation(fields: [relatedMatchRequestId], references: [id], onDelete: SetNull)
   statusHistory     BookingRequestStatusHistory[]
+  complaints        Complaint[]
 
   @@index([playerProfileId])
   @@index([partnerProfileId])
@@ -548,10 +569,37 @@ model MatchRequest {
   initiator        User               @relation("match_request_initiator", fields: [initiatorId], references: [id], onDelete: Cascade)
   opponent         User               @relation("match_request_opponent", fields: [opponentId], references: [id], onDelete: Cascade)
   relatedBookingRequest BookingRequest?
+  complaints       Complaint[]
 
   @@index([initiatorId, status, createdAt])
   @@index([opponentId, status, createdAt])
   @@map("match_requests")
+}
+
+model Complaint {
+  id                      String          @id @default(uuid()) @db.Uuid
+  createdByUserId         String          @map("created_by_user_id") @db.Uuid
+  targetUserId            String?         @map("target_user_id") @db.Uuid
+  relatedBookingRequestId String?         @map("related_booking_request_id") @db.Uuid
+  relatedMatchRequestId   String?         @map("related_match_request_id") @db.Uuid
+  type                    ComplaintType
+  description             String
+  status                  ComplaintStatus @default(pending)
+  resolutionComment       String?         @map("resolution_comment")
+  createdAt               DateTime        @default(now()) @map("created_at")
+  updatedAt               DateTime        @updatedAt @map("updated_at")
+  createdByUser           User            @relation("complaint_created_by_user", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  targetUser              User?           @relation("complaint_target_user", fields: [targetUserId], references: [id], onDelete: SetNull)
+  relatedBookingRequest   BookingRequest? @relation(fields: [relatedBookingRequestId], references: [id], onDelete: SetNull)
+  relatedMatchRequest     MatchRequest?   @relation(fields: [relatedMatchRequestId], references: [id], onDelete: SetNull)
+
+  @@index([createdByUserId, createdAt])
+  @@index([targetUserId])
+  @@index([relatedBookingRequestId])
+  @@index([relatedMatchRequestId])
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@map("complaints")
 }
 
 model CourtScheduleTemplate {

@@ -13,6 +13,7 @@ export const ERROR_CODES = {
   verificationRequestAlreadyPending: 'VERIFICATION_REQUEST_ALREADY_PENDING',
   verificationRequestAlreadyFinalized: 'VERIFICATION_REQUEST_ALREADY_FINALIZED',
   verificationRequestInvalidTransition: 'VERIFICATION_REQUEST_INVALID_TRANSITION',
+  verificationRequestDocumentRequired: 'VERIFICATION_REQUEST_DOCUMENT_REQUIRED',
   partnerProfileAlreadyExists: 'PARTNER_PROFILE_ALREADY_EXISTS',
   playerProfileAlreadyExists: 'PLAYER_PROFILE_ALREADY_EXISTS',
   playerProfileNotFound: 'PLAYER_PROFILE_NOT_FOUND',
@@ -31,4 +32,9 @@ export const ERROR_CODES = {
   matchRequestInvalidOpponent: 'MATCH_REQUEST_INVALID_OPPONENT',
   matchRequestInvalidSchedule: 'MATCH_REQUEST_INVALID_SCHEDULE',
   matchRequestBookingAlreadyExists: 'MATCH_REQUEST_BOOKING_ALREADY_EXISTS',
+  complaintNotFound: 'COMPLAINT_NOT_FOUND',
+  complaintMissingContext: 'COMPLAINT_MISSING_CONTEXT',
+  complaintContextForbidden: 'COMPLAINT_CONTEXT_FORBIDDEN',
+  complaintAlreadyFinalized: 'COMPLAINT_ALREADY_FINALIZED',
+  complaintInvalidTransition: 'COMPLAINT_INVALID_TRANSITION',
 } as const;

@@ -88,6 +88,7 @@ export default function PartnerVerificationPage() {
   }, [loadData]);
 
   const requestStatus = request?.status ?? 'draft';
+  const hasVerificationDocuments = Boolean(request?.documents.length);
   const canAddDocument =
     Boolean(session) &&
     Boolean(partnerProfile) &&
@@ -101,6 +102,7 @@ export default function PartnerVerificationPage() {
     requestStatus !== 'submitted' &&
     requestStatus !== 'in_review' &&
     requestStatus !== 'approved' &&
+    hasVerificationDocuments &&
     partnerProfile?.verificationStatus !== 'verified';
 
   const selectedFileSummary = useMemo(() => {
@@ -299,9 +301,14 @@ export default function PartnerVerificationPage() {
               повторная отправка сейчас недоступна.
             </Notice>
           ) : null}
+          {partnerProfile && !hasVerificationDocuments && requestStatus !== 'submitted' && requestStatus !== 'in_review' ? (
+            <Notice kind="error">
+              Перед отправкой заявки добавьте хотя бы один документ.
+            </Notice>
+          ) : null}
           <div className="info-list compact-list">
             <p>Профиль партнера должен быть сохранен.</p>
-            <p>Документы можно добавить заранее или позже, если это потребуется.</p>
+            <p>Для отправки нужен хотя бы один документ.</p>
             <p>После отправки статус изменится на «На проверке».</p>
           </div>
           <button

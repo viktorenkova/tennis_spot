@@ -1,7 +1,7 @@
 # tennis_spot
 
 `tennis_spot` is a web-first MVP in modular monolith format for players, partners and admins.
-The repository already contains a runnable vertical path:
+The repository is currently an internal runnable MVP baseline with a runnable vertical path:
 
 - demo authentication
 - player and partner profiles
@@ -12,11 +12,54 @@ The repository already contains a runnable vertical path:
 - request-based booking flow with availability validation
 - in-app notifications for verification and booking events
 - manual match requests between players
+- match-to-booking linkage for accepted match requests
 
 ## Product language
 
 - User-facing texts in UI, API messages and Swagger stay in Russian.
 - Technical identifiers, routes, enum keys, role keys and statuses stay in English to preserve the API contract.
+
+## Implemented status contract
+
+These statuses are implemented by the current Prisma schema, API, `/reference/enums` endpoint and shared package.
+
+Partner verification status:
+
+- `draft`
+- `pending_verification`
+- `verified`
+- `rejected`
+- `suspended`
+- `archived`
+
+Verification request status:
+
+- `draft`
+- `submitted`
+- `in_review`
+- `approved`
+- `rejected`
+- `needs_correction`
+
+Booking request status:
+
+- `draft`
+- `pending`
+- `confirmed`
+- `rejected`
+- `cancelled_by_player`
+- `cancelled_by_partner`
+- `expired`
+- `completed`
+
+Match request status:
+
+- `pending`
+- `accepted`
+- `declined`
+- `cancelled`
+
+Future match statuses such as `draft`, `sent`, `viewed`, `expired` and `completed` belong to the wider product vision and are not exposed as implemented match request statuses in the current API.
 
 ## Stack
 
@@ -48,10 +91,13 @@ packages/
 - partner court schedule templates and exceptions
 - public `GET /courts/{courtId}/availability?date=YYYY-MM-DD`
 - public `GET /venues` catalog for verified and active partner inventory
+- public `GET /partners` and `GET /partners/{partnerId}` for verified partner profiles only
 - public `GET /booking-requests/options` for подбор подходящих кортов по условиям
 - booking requests with status history, conflict checks and audit logs
 - in-app notifications with unread count and read actions
 - manual player-to-player match requests with accept, decline and cancel actions
+- booking creation from accepted match requests
+- complaints/disputes v1 with user submission, admin status lifecycle and notifications
 - unified response envelope and unified error envelope
 
 ### Frontend
@@ -66,10 +112,12 @@ packages/
 - `/me/partner/venues`
 - `/me/partner/verification`
 - `/booking-requests`
+- `/complaints`
 - `/me/partner/booking-requests`
 - `/notifications`
 - `/admin/verification-requests`
 - `/admin/verification-requests/[id]`
+- `/admin/complaints`
 
 ### Current hardening rules for venues and courts
 
@@ -78,6 +126,7 @@ packages/
 - a user can manage schedules only for their own courts
 - public catalog shows only `verified` partner venues with `isActive=true`
 - public venue details include only active courts
+- public partner routes show only verified partners and omit private legal/tax/owner fields
 - courts stay strictly attached to their venue
 - booking creation is validated against court schedule, exceptions and active request conflicts
 
@@ -144,6 +193,15 @@ Ensure admin only:
 npm run db:seed-admin
 ```
 
+## Public endpoint rules
+
+- `GET /partners` returns only verified partner profiles.
+- `GET /partners/{partnerId}` returns only a verified partner profile and exposes only public-safe fields. Unverified, rejected, suspended or archived partner profiles are returned as not found.
+- `GET /venues` returns only active venues owned by verified partners.
+- `GET /venues/{venueId}` returns only active verified-partner venues and includes only active courts.
+- `GET /players` returns only active player profiles that are visible to authenticated users.
+- `POST /partner/verification/submit` requires at least one verification document.
+
 ## Seeded demo access
 
 The main seed creates:
@@ -195,10 +253,11 @@ Important URLs:
 7. Add at least one weekly schedule template for that court
 8. Add an exception if you want to test closed, blocked or custom-hours logic
 9. Open `/me/partner/verification`
-10. Submit the verification request
-11. Sign in as `demo-admin`
-12. Open `/admin/verification-requests`
-13. Approve the request
+10. Add at least one verification document
+11. Submit the verification request
+12. Sign in as `demo-admin`
+13. Open `/admin/verification-requests`
+14. Approve the request
 
 ### Booking flow
 
@@ -258,11 +317,27 @@ Verification also creates notifications:
 6. Sign back in as `demo-player`
 7. Open `/players`, choose player B and send a match request
 8. Sign in as `demo-partner`, open `/match-requests` and accept the challenge
-9. Sign back in as `demo-player`, open `/match-requests` and click `Оформить бронь`
-10. On `/booking-requests`, keep the prefilled match date, time and players count, then choose an available court
-11. Submit the booking request from the match flow
-12. Sign in as `demo-partner`, open `/me/partner/booking-requests` and confirm the booking
-13. Both players can open `/match-requests`, `/booking-requests` or `/notifications` and verify the linked booking result
+9. Sign back in as `demo-player`, open `/match-requests` and confirm the accepted card shows `Оформить бронь для этой игры`
+10. Click the CTA and verify `/booking-requests` opens with the game context: opponent, date, time, format and players count
+11. Choose an available court through the booking discovery flow
+12. Submit the request-based booking and confirm the success message says the booking request is linked to the match
+13. Sign in as player B and confirm the `Создана заявка на бронь для вашей игры` notification is present
+14. Sign in as `demo-partner`, open `/me/partner/booking-requests` and confirm the booking
+15. Sign back in as player A and verify `/match-requests` shows the linked booking status without raw enum values
+
+### Complaints / disputes flow
+
+1. Complete a booking flow or create a match request
+2. Open `/booking-requests` or `/match-requests`
+3. Click `Пожаловаться`
+4. Fill the short form: type and description
+5. Submit the complaint
+6. Sign in as `demo-admin`
+7. Open `/admin/complaints`
+8. Change the status to `В работе`, `Решено` or `Отклонено`
+9. Sign back in as the player
+10. Open `/notifications` and confirm the complaint status notification is present
+11. Open `/complaints` and confirm the status and admin response are visible
 
 ### Fast admin flow
 
@@ -375,6 +450,15 @@ curl.exe "http://localhost:4000/api/v1/courts/<COURT_ID>/availability?date=2026-
 
 ### Submit verification request
 
+Add at least one document before submission:
+
+```powershell
+curl.exe -X POST "http://localhost:4000/api/v1/partner/verification/documents" `
+  -H "Authorization: Bearer <PARTNER_ACCESS_TOKEN>" `
+  -H "Content-Type: application/json" `
+  -d "{\"documentType\":\"registration_certificate\",\"originalName\":\"registration.pdf\",\"storageKey\":\"demo/registration.pdf\",\"mimeType\":\"application/pdf\",\"sizeBytes\":1024}"
+```
+
 ```powershell
 curl.exe -X POST "http://localhost:4000/api/v1/partner/verification/submit" `
   -H "Authorization: Bearer <PARTNER_ACCESS_TOKEN>"
@@ -486,6 +570,33 @@ npm run test:e2e
 
 The e2e suite boots the Nest app over an in-memory Prisma double, so the current slices can be tested without Docker-dependent test infrastructure.
 
+## Run real-DB smoke
+
+The real-DB smoke is intentionally small. It validates the migrated PostgreSQL schema, seed baseline and a representative API path with real Prisma/Postgres.
+
+For a clean local PostgreSQL baseline:
+
+```bash
+docker compose up -d
+npm run db:deploy
+npm run db:seed
+npm run smoke:real-db
+```
+
+The smoke script creates unique phone-auth users and checks:
+
+- phone/demo auth
+- player profile creation
+- partner profile update
+- verification document + submit + admin approval
+- public partner visibility
+- venue/court/schedule creation
+- booking options
+- booking request + partner confirmation
+- match request + accept
+- accepted match request -> linked booking request
+- notification read action
+
 ## Current deliberate boundaries
 
 - booking is request-based, not instant booking
@@ -495,7 +606,9 @@ The e2e suite boots the Nest app over an in-memory Prisma double, so the current
 - notifications are in-app only, without email, push, websocket or event bus
 - match requests are manual challenges, not an automated matchmaking algorithm
 - verification document upload is still demo-oriented metadata storage
+- verification submission requires at least one document
 - no public marketplace UI beyond the API-backed catalog checks
+- tournament, chat, payments, realtime booking and advanced matchmaking remain future vision, not current baseline
 
 ## Next iteration focus
 

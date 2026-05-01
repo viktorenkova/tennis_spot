@@ -451,7 +451,25 @@ export class BookingService {
 
     return this.prisma.bookingRequest.findMany({
       where: {
-        playerProfileId: playerProfile.id,
+        OR: [
+          {
+            playerProfileId: playerProfile.id,
+          },
+          {
+            relatedMatchRequest: {
+              is: {
+                OR: [
+                  {
+                    initiatorId: userId,
+                  },
+                  {
+                    opponentId: userId,
+                  },
+                ],
+              },
+            },
+          },
+        ],
       },
       include: bookingListInclude,
       orderBy: {
@@ -466,7 +484,25 @@ export class BookingService {
     const bookingRequest = await this.prisma.bookingRequest.findFirst({
       where: {
         id: bookingRequestId,
-        playerProfileId: playerProfile.id,
+        OR: [
+          {
+            playerProfileId: playerProfile.id,
+          },
+          {
+            relatedMatchRequest: {
+              is: {
+                OR: [
+                  {
+                    initiatorId: userId,
+                  },
+                  {
+                    opponentId: userId,
+                  },
+                ],
+              },
+            },
+          },
+        ],
       },
       include: bookingDetailsInclude,
     });

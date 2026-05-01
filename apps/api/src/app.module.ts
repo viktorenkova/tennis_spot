@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BookingModule } from './modules/booking/booking.module';
+import { ComplaintsModule } from './modules/complaints/complaints.module';
 import { CourtScheduleModule } from './modules/court-schedule/court-schedule.module';
 import { configuration, envFilePaths } from './config/configuration';
 import { AuthModule } from './modules/auth/auth.module';
@@ -29,6 +30,7 @@ import { VerificationModule } from './modules/verification/verification.module';
     AuthModule,
     AdminModule,
     BookingModule,
+    ComplaintsModule,
     CourtScheduleModule,
     MatchRequestsModule,
     NotificationsModule,

@@ -21,6 +21,7 @@ const navigation = [
       { href: '/players', label: 'Каталог игроков' },
       { href: '/match-requests', label: 'Вызовы на игру' },
       { href: '/booking-requests', label: 'Заявки на бронь' },
+      { href: '/complaints', label: 'Мои жалобы' },
     ],
   },
   {
@@ -35,7 +36,10 @@ const navigation = [
   {
     title: 'Сценарий администратора',
     adminOnly: true,
-    items: [{ href: '/admin/verification-requests', label: 'Заявки на верификацию' }],
+    items: [
+      { href: '/admin/verification-requests', label: 'Заявки на верификацию' },
+      { href: '/admin/complaints', label: 'Жалобы' },
+    ],
   },
 ];
 

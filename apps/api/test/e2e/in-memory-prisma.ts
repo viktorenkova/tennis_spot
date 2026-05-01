@@ -29,6 +29,8 @@ type BookingRequestStatus =
 type ScheduleExceptionType = 'closed' | 'custom_hours' | 'blocked' | 'custom_price';
 type MatchRequestStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
 type MatchRequestFormat = 'singles' | 'doubles';
+type ComplaintType = 'no_show' | 'late_cancel' | 'bad_behavior' | 'court_issue' | 'other';
+type ComplaintStatus = 'pending' | 'in_review' | 'resolved' | 'rejected';
 type NotificationType =
   | 'verification_submitted'
   | 'verification_approved'
@@ -43,8 +45,14 @@ type NotificationType =
   | 'match_request_accepted'
   | 'match_request_declined'
   | 'match_request_cancelled'
-  | 'match_booking_created';
-type NotificationRelatedEntityType = 'verification_request' | 'booking_request' | 'match_request';
+  | 'match_booking_created'
+  | 'complaint_created'
+  | 'complaint_status_updated';
+type NotificationRelatedEntityType =
+  | 'verification_request'
+  | 'booking_request'
+  | 'match_request'
+  | 'complaint';
 
 type UserRecord = {
   id: string;
@@ -302,6 +310,20 @@ type MatchRequestRecord = {
   updatedAt: Date;
 };
 
+type ComplaintRecord = {
+  id: string;
+  createdByUserId: string;
+  targetUserId: string | null;
+  relatedBookingRequestId: string | null;
+  relatedMatchRequestId: string | null;
+  type: ComplaintType;
+  description: string;
+  status: ComplaintStatus;
+  resolutionComment: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type CourtScheduleTemplateRecord = {
   id: string;
   courtId: string;
@@ -376,6 +398,7 @@ export class InMemoryPrismaService {
   private bookingRequests: BookingRequestRecord[] = [];
   private bookingRequestStatusHistoryEntries: BookingRequestStatusHistoryRecord[] = [];
   private matchRequests: MatchRequestRecord[] = [];
+  private complaints: ComplaintRecord[] = [];
   private courtScheduleTemplates: CourtScheduleTemplateRecord[] = [];
   private courtScheduleExceptions: CourtScheduleExceptionRecord[] = [];
   private auditLogs: AuditLogRecord[] = [];
@@ -454,6 +477,7 @@ export class InMemoryPrismaService {
 
   partnerProfile: any = {
     findUnique: async (_args: any) => null,
+    findFirst: async (_args: any) => null,
     create: async (_args: any) => null,
     update: async (_args: any) => null,
     findMany: async (_args: any) => [],
@@ -528,6 +552,14 @@ export class InMemoryPrismaService {
     update: async (_args: any) => null,
   };
 
+  complaint: any = {
+    create: async (_args: any) => null,
+    findMany: async (_args: any) => [],
+    findFirst: async (_args: any) => null,
+    findUnique: async (_args: any) => null,
+    update: async (_args: any) => null,
+  };
+
   auditLog: any = {
     create: async (_args: any) => null,
     findMany: async (_args: any) => [],
@@ -561,6 +593,14 @@ export class InMemoryPrismaService {
   };
 
   verificationDocument: any = {
+    count: async ({ where }: any = {}) =>
+      this.verificationDocuments.filter((document) => {
+        if (where?.verificationRequestId) {
+          return document.verificationRequestId === where.verificationRequestId;
+        }
+
+        return true;
+      }).length,
     create: async ({ data, include }: any) => {
       const document: VerificationDocumentRecord = {
         id: randomUUID(),
@@ -1251,7 +1291,7 @@ export class InMemoryPrismaService {
     this.partnerType.findUnique = async ({ where }: any) =>
       this.partnerTypes.find((item) => item.key === where.key || item.id === where.id) ?? null;
 
-    this.partnerProfile.findUnique = async ({ where, include }: any) => {
+    this.partnerProfile.findUnique = async ({ where, include, select }: any) => {
       const profile =
         this.partnerProfiles.find((item) => {
           if (where.ownerUserId) {
@@ -1265,7 +1305,7 @@ export class InMemoryPrismaService {
           return false;
         }) ?? null;
 
-      return profile ? this.withPartnerProfileIncludes(profile, include) : null;
+      return profile ? this.withPartnerProfileIncludes(profile, include, select) : null;
     };
 
     this.partnerProfile.create = async ({ data, include }: any) => {
@@ -1314,16 +1354,25 @@ export class InMemoryPrismaService {
       return this.withPartnerProfileIncludes(profile, include);
     };
 
-    this.partnerProfile.findMany = async ({ where, include }: any) =>
+    this.partnerProfile.findMany = async ({ where, include, select }: any = {}) =>
       this.partnerProfiles
         .filter((profile) => {
-          if (where?.verificationStatus) {
-            return profile.verificationStatus === where.verificationStatus;
+          if (where?.verificationStatus && profile.verificationStatus !== where.verificationStatus) {
+            return false;
+          }
+
+          if (where?.id && profile.id !== where.id) {
+            return false;
           }
 
           return true;
         })
-        .map((profile) => this.withPartnerProfileIncludes(profile, include));
+        .map((profile) => this.withPartnerProfileIncludes(profile, include, select));
+
+    this.partnerProfile.findFirst = async (args: any = {}) => {
+      const items = await this.partnerProfile.findMany(args);
+      return items[0] ?? null;
+    };
 
     this.partnerProfileType.deleteMany = async ({ where }: any) => {
       const before = this.partnerProfileTypes.length;
@@ -1774,6 +1823,41 @@ export class InMemoryPrismaService {
         );
       }
 
+      if (where?.OR) {
+        items = items.filter((bookingRequest) =>
+          where.OR.some((condition: any) => {
+            if (
+              condition.playerProfileId &&
+              bookingRequest.playerProfileId === condition.playerProfileId
+            ) {
+              return true;
+            }
+
+            const relatedMatchRequestFilter = condition.relatedMatchRequest?.is;
+
+            if (!relatedMatchRequestFilter || !bookingRequest.relatedMatchRequestId) {
+              return false;
+            }
+
+            const relatedMatchRequest = this.matchRequests.find(
+              (matchRequest) => matchRequest.id === bookingRequest.relatedMatchRequestId,
+            );
+
+            if (!relatedMatchRequest) {
+              return false;
+            }
+
+            return relatedMatchRequestFilter.OR?.some(
+              (matchCondition: any) =>
+                (matchCondition.initiatorId &&
+                  relatedMatchRequest.initiatorId === matchCondition.initiatorId) ||
+                (matchCondition.opponentId &&
+                  relatedMatchRequest.opponentId === matchCondition.opponentId),
+            );
+          }),
+        );
+      }
+
       if (where?.status) {
         if (where.status.in) {
           items = items.filter((bookingRequest) => where.status.in.includes(bookingRequest.status));
@@ -1923,6 +2007,76 @@ export class InMemoryPrismaService {
 
       Object.assign(matchRequest, data, { updatedAt: new Date() });
       return this.withMatchRequestIncludes(matchRequest, include);
+    };
+
+    this.complaint.create = async ({ data, include }: any) => {
+      const complaint: ComplaintRecord = {
+        id: randomUUID(),
+        createdByUserId: data.createdByUserId,
+        targetUserId: data.targetUserId ?? null,
+        relatedBookingRequestId: data.relatedBookingRequestId ?? null,
+        relatedMatchRequestId: data.relatedMatchRequestId ?? null,
+        type: data.type,
+        description: data.description,
+        status: data.status ?? 'pending',
+        resolutionComment: data.resolutionComment ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      this.complaints.push(complaint);
+      return this.withComplaintIncludes(complaint, include);
+    };
+
+    this.complaint.findMany = async ({ where, include, orderBy }: any = {}) => {
+      let items = [...this.complaints];
+
+      if (where?.id) {
+        items = items.filter((complaint) => complaint.id === where.id);
+      }
+
+      if (where?.createdByUserId) {
+        items = items.filter(
+          (complaint) => complaint.createdByUserId === where.createdByUserId,
+        );
+      }
+
+      if (where?.status) {
+        items = items.filter((complaint) => complaint.status === where.status);
+      }
+
+      if (where?.type) {
+        items = items.filter((complaint) => complaint.type === where.type);
+      }
+
+      if (orderBy?.createdAt === 'desc') {
+        items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      } else if (orderBy?.createdAt === 'asc') {
+        items.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      }
+
+      return items.map((complaint) => this.withComplaintIncludes(complaint, include));
+    };
+
+    this.complaint.findFirst = async ({ where, include }: any = {}) => {
+      const items = await this.complaint.findMany({ where, include });
+      return items[0] ?? null;
+    };
+
+    this.complaint.findUnique = async ({ where, include }: any) => {
+      const complaint = this.complaints.find((item) => item.id === where.id) ?? null;
+      return complaint ? this.withComplaintIncludes(complaint, include) : null;
+    };
+
+    this.complaint.update = async ({ where, data, include }: any) => {
+      const complaint = this.complaints.find((item) => item.id === where.id) ?? null;
+
+      if (!complaint) {
+        return null;
+      }
+
+      Object.assign(complaint, data, { updatedAt: new Date() });
+      return this.withComplaintIncludes(complaint, include);
     };
 
     this.verificationRequest.findFirst = async ({ where, orderBy, include }: any) => {
@@ -2239,8 +2393,8 @@ export class InMemoryPrismaService {
     };
   }
 
-  private withPartnerProfileIncludes(profile: PartnerProfileRecord, include: any) {
-    return {
+  private withPartnerProfileIncludes(profile: PartnerProfileRecord, include: any, select?: any) {
+    const payload = {
       ...profile,
       ...(include?.ownerUser
         ? {
@@ -2267,6 +2421,50 @@ export class InMemoryPrismaService {
         ? { district: this.districts.find((district) => district.id === profile.districtId) ?? null }
         : {}),
     };
+
+    if (!select) {
+      return payload;
+    }
+
+    const selected: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(select)) {
+      if (!value) {
+        continue;
+      }
+
+      if (key === 'city') {
+        selected.city = this.cities.find((city) => city.id === profile.cityId) ?? null;
+        continue;
+      }
+
+      if (key === 'district') {
+        selected.district =
+          this.districts.find((district) => district.id === profile.districtId) ?? null;
+        continue;
+      }
+
+      if (key === 'profileTypes') {
+        selected.profileTypes = this.partnerProfileTypes
+          .filter((item) => item.partnerProfileId === profile.id)
+          .map((item) => ({
+            ...item,
+            partnerType: this.partnerTypes.find(
+              (partnerType) => partnerType.id === item.partnerTypeId,
+            )!,
+          }));
+        continue;
+      }
+
+      if (key === 'contacts') {
+        selected.contacts = [];
+        continue;
+      }
+
+      selected[key] = (profile as unknown as Record<string, unknown>)[key];
+    }
+
+    return selected;
   }
 
   private withAddressIncludes(address: AddressRecord, include: any) {
@@ -2378,6 +2576,53 @@ export class InMemoryPrismaService {
                     }
                   : {}),
               })),
+          }
+        : {}),
+    };
+  }
+
+  private withComplaintIncludes(complaint: ComplaintRecord, include: any) {
+    const bookingRequest = complaint.relatedBookingRequestId
+      ? this.bookingRequests.find((item) => item.id === complaint.relatedBookingRequestId) ?? null
+      : null;
+    const matchRequest = complaint.relatedMatchRequestId
+      ? this.matchRequests.find((item) => item.id === complaint.relatedMatchRequestId) ?? null
+      : null;
+
+    return {
+      ...complaint,
+      ...(include?.createdByUser
+        ? {
+            createdByUser: this.withUserIncludes(
+              this.users.find((user) => user.id === complaint.createdByUserId)!,
+              include.createdByUser.include,
+            ),
+          }
+        : {}),
+      ...(include?.targetUser
+        ? {
+            targetUser: complaint.targetUserId
+              ? this.withUserIncludes(
+                  this.users.find((user) => user.id === complaint.targetUserId)!,
+                  include.targetUser.include,
+                )
+              : null,
+          }
+        : {}),
+      ...(include?.relatedBookingRequest
+        ? {
+            relatedBookingRequest: bookingRequest
+              ? {
+                  ...bookingRequest,
+                  venue: this.venues.find((venue) => venue.id === bookingRequest.venueId) ?? null,
+                  court: this.courts.find((court) => court.id === bookingRequest.courtId) ?? null,
+                }
+              : null,
+          }
+        : {}),
+      ...(include?.relatedMatchRequest
+        ? {
+            relatedMatchRequest: matchRequest ? { ...matchRequest } : null,
           }
         : {}),
     };

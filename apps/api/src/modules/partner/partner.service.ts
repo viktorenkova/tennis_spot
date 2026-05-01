@@ -1,7 +1,34 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreatePartnerProfileDto } from './dto/create-partner-profile.dto';
 import { UpdatePartnerProfileDto } from './dto/update-partner-profile.dto';
+
+const publicPartnerSelect = Prisma.validator<Prisma.PartnerProfileSelect>()({
+  id: true,
+  legalName: true,
+  brandName: true,
+  description: true,
+  contactPhone: true,
+  contactEmail: true,
+  verificationStatus: true,
+  city: true,
+  district: true,
+  profileTypes: {
+    include: {
+      partnerType: true,
+    },
+  },
+  contacts: {
+    select: {
+      id: true,
+      type: true,
+      value: true,
+      label: true,
+      isPrimary: true,
+    },
+  },
+});
 
 @Injectable()
 export class PartnerService {
@@ -170,15 +197,7 @@ export class PartnerService {
       where: {
         verificationStatus: 'verified',
       },
-      include: {
-        city: true,
-        district: true,
-        profileTypes: {
-          include: {
-            partnerType: true,
-          },
-        },
-      },
+      select: publicPartnerSelect,
       orderBy: {
         createdAt: 'desc',
       },
@@ -186,18 +205,12 @@ export class PartnerService {
   }
 
   async getPartnerById(partnerId: string) {
-    const partner = await this.prisma.partnerProfile.findUnique({
-      where: { id: partnerId },
-      include: {
-        city: true,
-        district: true,
-        profileTypes: {
-          include: {
-            partnerType: true,
-          },
-        },
-        contacts: true,
+    const partner = await this.prisma.partnerProfile.findFirst({
+      where: {
+        id: partnerId,
+        verificationStatus: 'verified',
       },
+      select: publicPartnerSelect,
     });
 
     if (!partner) {

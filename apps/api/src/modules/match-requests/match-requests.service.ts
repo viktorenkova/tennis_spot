@@ -48,6 +48,10 @@ const matchRequestInclude = Prisma.validator<Prisma.MatchRequestInclude>()({
   },
 });
 
+type MatchRequestWithRelations = Prisma.MatchRequestGetPayload<{
+  include: typeof matchRequestInclude;
+}>;
+
 @Injectable()
 export class MatchRequestsService {
   constructor(
@@ -111,17 +115,19 @@ export class MatchRequestsService {
         tx,
       );
 
-      return tx.matchRequest.findUnique({
+      const createdMatchRequest = await tx.matchRequest.findUnique({
         where: {
           id: matchRequest.id,
         },
         include: matchRequestInclude,
       });
+
+      return this.serializeMatchRequest(createdMatchRequest);
     });
   }
 
-  listIncoming(userId: string) {
-    return this.prisma.matchRequest.findMany({
+  async listIncoming(userId: string) {
+    const matchRequests = await this.prisma.matchRequest.findMany({
       where: {
         opponentId: userId,
       },
@@ -130,10 +136,12 @@ export class MatchRequestsService {
         createdAt: 'desc',
       },
     });
+
+    return matchRequests.map((matchRequest) => this.serializeMatchRequest(matchRequest));
   }
 
-  listOutgoing(userId: string) {
-    return this.prisma.matchRequest.findMany({
+  async listOutgoing(userId: string) {
+    const matchRequests = await this.prisma.matchRequest.findMany({
       where: {
         initiatorId: userId,
       },
@@ -142,6 +150,8 @@ export class MatchRequestsService {
         createdAt: 'desc',
       },
     });
+
+    return matchRequests.map((matchRequest) => this.serializeMatchRequest(matchRequest));
   }
 
   async accept(userId: string, matchRequestId: string) {
@@ -207,13 +217,38 @@ export class MatchRequestsService {
         tx,
       );
 
-      return tx.matchRequest.findUnique({
+      const refreshedMatchRequest = await tx.matchRequest.findUnique({
         where: {
           id: updatedMatchRequest.id,
         },
         include: matchRequestInclude,
       });
+
+      return this.serializeMatchRequest(refreshedMatchRequest);
     });
+  }
+
+  private serializeMatchRequest(matchRequest: MatchRequestWithRelations | null) {
+    if (!matchRequest) {
+      return null;
+    }
+
+    const relatedBookingRequest = matchRequest.relatedBookingRequest;
+
+    return {
+      ...matchRequest,
+      relatedBooking: relatedBookingRequest
+        ? {
+            id: relatedBookingRequest.id,
+            status: relatedBookingRequest.status,
+            venueName: relatedBookingRequest.venue?.name ?? null,
+            courtName: relatedBookingRequest.court?.name ?? null,
+            bookingDate: this.formatDate(relatedBookingRequest.bookingDate),
+            timeFrom: relatedBookingRequest.timeFrom,
+            timeTo: relatedBookingRequest.timeTo,
+          }
+        : null,
+    };
   }
 
   private getTransitionNotification(matchRequest: MatchRequest, nextStatus: MatchRequestStatus) {

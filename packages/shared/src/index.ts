@@ -19,14 +19,47 @@ export const BOOKING_REQUEST_STATUSES = [
   'completed',
 ] as const;
 export const MATCH_REQUEST_STATUSES = [
-  'draft',
-  'sent',
-  'viewed',
+  'pending',
   'accepted',
   'declined',
   'cancelled',
-  'expired',
-  'completed',
+] as const;
+export const COMPLAINT_TYPES = [
+  'no_show',
+  'late_cancel',
+  'bad_behavior',
+  'court_issue',
+  'other',
+] as const;
+export const COMPLAINT_STATUSES = [
+  'pending',
+  'in_review',
+  'resolved',
+  'rejected',
+] as const;
+export const NOTIFICATION_TYPES = [
+  'verification_submitted',
+  'verification_approved',
+  'verification_rejected',
+  'verification_needs_correction',
+  'booking_created',
+  'booking_confirmed',
+  'booking_rejected',
+  'booking_cancelled',
+  'booking_completed',
+  'match_request_created',
+  'match_request_accepted',
+  'match_request_declined',
+  'match_request_cancelled',
+  'match_booking_created',
+  'complaint_created',
+  'complaint_status_updated',
+] as const;
+export const NOTIFICATION_RELATED_ENTITY_TYPES = [
+  'verification_request',
+  'booking_request',
+  'match_request',
+  'complaint',
 ] as const;
 export const TOURNAMENT_STATUSES = [
   'draft',
@@ -82,6 +115,11 @@ export type PlayerProfileStatus = (typeof PLAYER_PROFILE_STATUSES)[number];
 export type PartnerVerificationStatus = (typeof PARTNER_VERIFICATION_STATUSES)[number];
 export type BookingRequestStatus = (typeof BOOKING_REQUEST_STATUSES)[number];
 export type MatchRequestStatus = (typeof MATCH_REQUEST_STATUSES)[number];
+export type ComplaintType = (typeof COMPLAINT_TYPES)[number];
+export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+export type NotificationRelatedEntityType =
+  (typeof NOTIFICATION_RELATED_ENTITY_TYPES)[number];
 export type TournamentStatus = (typeof TOURNAMENT_STATUSES)[number];
 export type TournamentRegistrationStatus =
   (typeof TOURNAMENT_REGISTRATION_STATUSES)[number];

@@ -1,6 +1,6 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { DemoShell } from '../../src/components/demo-shell';
 import { Card, Notice, StatusBadge } from '../../src/components/ui';
@@ -148,6 +148,7 @@ type MatchPrefill = {
   timeTo: string;
   playersCount: string;
   opponentName: string;
+  format: string;
 };
 
 const initialSearchForm: SearchForm = {
@@ -210,7 +211,9 @@ function isValidPlayersCount(value: string) {
 }
 
 function BookingRequestsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const bookingRequestIdFromQuery = searchParams.get('bookingRequestId');
   const { session, isLoaded } = useDemoSession();
   const [playerProfile, setPlayerProfile] = useState<PlayerProfile | null>(null);
   const [cities, setCities] = useState<City[]>([]);
@@ -229,6 +232,7 @@ function BookingRequestsContent() {
   const [loading, setLoading] = useState(false);
   const [detailsLoadingId, setDetailsLoadingId] = useState<string | null>(null);
   const [districtsLoading, setDistrictsLoading] = useState(false);
+  const [openedBookingRequestId, setOpenedBookingRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     const matchRequestId = searchParams.get('matchRequestId');
@@ -244,6 +248,7 @@ function BookingRequestsContent() {
       timeTo: searchParams.get('timeTo') ?? '',
       playersCount: searchParams.get('playersCount') ?? '2',
       opponentName: searchParams.get('opponentName') ?? 'Игрок',
+      format: searchParams.get('format') ?? 'Игра',
     };
 
     setMatchPrefill(nextPrefill);
@@ -354,7 +359,7 @@ function BookingRequestsContent() {
 
   const lockedByMatch = Boolean(matchPrefill);
 
-  const loadDetails = async (bookingRequestId: string) => {
+  const loadDetails = useCallback(async (bookingRequestId: string) => {
     if (!session) {
       return;
     }
@@ -374,7 +379,16 @@ function BookingRequestsContent() {
 
     setSelectedBooking(response.data);
     setDetailsLoadingId(null);
-  };
+  }, [session]);
+
+  useEffect(() => {
+    if (!session || !bookingRequestIdFromQuery || openedBookingRequestId === bookingRequestIdFromQuery) {
+      return;
+    }
+
+    setOpenedBookingRequestId(bookingRequestIdFromQuery);
+    void loadDetails(bookingRequestIdFromQuery);
+  }, [bookingRequestIdFromQuery, loadDetails, openedBookingRequestId, session]);
 
   const runSearch = async () => {
     if (!searchForm.bookingDate || !searchForm.timeFrom || !searchForm.timeTo) {
@@ -457,7 +471,11 @@ function BookingRequestsContent() {
       ...current,
       playersCount: searchForm.playersCount,
     }));
-    setMessage('Вариант выбран. Проверьте короткую форму заявки и отправьте её партнёру.');
+    setMessage(
+      matchPrefill
+        ? 'Корт выбран. Проверьте комментарий и создайте связанную заявку на бронь.'
+        : 'Вариант выбран. Проверьте короткую форму заявки и отправьте её партнёру.',
+    );
     setError(null);
   };
 
@@ -516,7 +534,11 @@ function BookingRequestsContent() {
     setSelectedBooking(response.data);
     setSelectedOption(null);
     setRequestForm(initialRequestForm);
-    setMessage('Заявка на бронь отправлена партнёру.');
+    setMessage(
+      matchPrefill
+        ? 'Заявка на бронь создана и связана с вызовом.'
+        : 'Заявка на бронь отправлена партнёру.',
+    );
     setLoading(false);
     await Promise.all([loadBaseData(), runSearch()]);
   };
@@ -548,6 +570,10 @@ function BookingRequestsContent() {
     await Promise.all([loadBaseData(), hasSearched ? runSearch() : Promise.resolve()]);
   };
 
+  function openComplaintForBooking(bookingRequestId: string) {
+    router.push(`/complaints?relatedBookingRequestId=${bookingRequestId}`);
+  }
+
   const searchReady = Boolean(
     searchForm.bookingDate &&
       searchForm.timeFrom &&
@@ -575,10 +601,34 @@ function BookingRequestsContent() {
       {message ? <Notice kind="success">{message}</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
       {matchPrefill ? (
-        <Notice kind="success">
-          Игра с игроком: <strong>{matchPrefill.opponentName}</strong>. Дата, время и количество
-          игроков взяты из принятого вызова.
-        </Notice>
+        <Card accent>
+          <div className="card-header-row">
+            <div>
+              <h3>Бронь для игры</h3>
+              <p className="muted">
+                Выберите подходящий корт. Заявка на бронь будет связана с этим вызовом.
+              </p>
+            </div>
+            <StatusBadge tone="success">Принятый вызов</StatusBadge>
+          </div>
+          <div className="info-list">
+            <p>
+              <strong>Соперник:</strong> {matchPrefill.opponentName}
+            </p>
+            <p>
+              <strong>Дата:</strong> {formatDate(matchPrefill.date)}
+            </p>
+            <p>
+              <strong>Время:</strong> {matchPrefill.timeFrom} - {matchPrefill.timeTo}
+            </p>
+            <p>
+              <strong>Формат:</strong> {matchPrefill.format}
+            </p>
+            <p>
+              <strong>Игроков:</strong> {matchPrefill.playersCount}
+            </p>
+          </div>
+        </Card>
       ) : null}
 
       <div className="split-grid">
@@ -730,11 +780,12 @@ function BookingRequestsContent() {
         </Card>
 
         <Card>
-          <h3>Отправить заявку</h3>
+          <h3>{matchPrefill ? 'Оформить бронь для игры' : 'Отправить заявку'}</h3>
           {!selectedOption ? (
             <Notice>
-              Сначала подберите варианты и выберите подходящий корт. После выбора здесь останется
-              только короткая форма заявки.
+              {matchPrefill
+                ? 'Сначала выберите подходящий корт из discovery. После выбора заявка сохранит связь с вызовом.'
+                : 'Сначала подберите варианты и выберите подходящий корт. После выбора здесь останется только короткая форма заявки.'}
             </Notice>
           ) : (
             <>
@@ -931,6 +982,13 @@ function BookingRequestsContent() {
                     disabled={detailsLoadingId === bookingRequest.id}
                   >
                     {detailsLoadingId === bookingRequest.id ? 'Загрузка...' : 'Детали'}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => openComplaintForBooking(bookingRequest.id)}
+                  >
+                    Пожаловаться
                   </button>
                   {canCancelBooking(bookingRequest.status) ? (
                     <button

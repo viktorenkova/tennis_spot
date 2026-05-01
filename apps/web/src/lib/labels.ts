@@ -22,7 +22,7 @@ const partnerVerificationStatuses: Record<string, { label: string; tone: StatusT
 
 const bookingRequestStatuses: Record<string, { label: string; tone: StatusTone }> = {
   draft: { label: 'Черновик', tone: 'neutral' },
-  pending: { label: 'Ожидает решения партнёра', tone: 'warning' },
+  pending: { label: 'Ожидает подтверждения', tone: 'warning' },
   confirmed: { label: 'Подтверждена', tone: 'success' },
   rejected: { label: 'Отклонена', tone: 'danger' },
   cancelled_by_player: { label: 'Отменена игроком', tone: 'neutral' },
@@ -41,6 +41,21 @@ const matchRequestStatuses: Record<string, { label: string; tone: StatusTone }> 
 const matchRequestFormats: Record<string, string> = {
   singles: 'Одиночная игра',
   doubles: 'Парная игра',
+};
+
+const complaintStatuses: Record<string, { label: string; tone: StatusTone }> = {
+  pending: { label: 'На рассмотрении', tone: 'warning' },
+  in_review: { label: 'В работе', tone: 'warning' },
+  resolved: { label: 'Решено', tone: 'success' },
+  rejected: { label: 'Отклонено', tone: 'danger' },
+};
+
+const complaintTypes: Record<string, string> = {
+  no_show: 'Не пришёл на игру',
+  late_cancel: 'Поздняя отмена',
+  bad_behavior: 'Плохое поведение',
+  court_issue: 'Проблема с кортом',
+  other: 'Другое',
 };
 
 const playerStatuses: Record<string, { label: string; tone: StatusTone }> = {
@@ -124,6 +139,18 @@ export function getMatchRequestStatusTone(status: string) {
 
 export function formatMatchRequestFormat(format: string) {
   return matchRequestFormats[format] ?? format;
+}
+
+export function formatComplaintStatus(status: string) {
+  return complaintStatuses[status]?.label ?? status;
+}
+
+export function getComplaintStatusTone(status: string) {
+  return complaintStatuses[status]?.tone ?? 'neutral';
+}
+
+export function formatComplaintType(type: string) {
+  return complaintTypes[type] ?? type;
 }
 
 export function formatPlayerStatus(status: string) {
