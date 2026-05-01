@@ -248,6 +248,22 @@ Verification also creates notifications:
 12. Sign back in as `demo-player`
 13. Open `/match-requests` or `/notifications` and confirm that the status changed
 
+### Match to booking flow
+
+1. Complete the partner inventory flow and make sure `demo-partner` has a verified venue, court and schedule
+2. Sign in as `demo-player` (player A)
+3. Open `/me/player` and create or update the player profile
+4. Sign in as `demo-partner` as player B
+5. Open `/me/player` and create or update the second player profile
+6. Sign back in as `demo-player`
+7. Open `/players`, choose player B and send a match request
+8. Sign in as `demo-partner`, open `/match-requests` and accept the challenge
+9. Sign back in as `demo-player`, open `/match-requests` and click `Оформить бронь`
+10. On `/booking-requests`, keep the prefilled match date, time and players count, then choose an available court
+11. Submit the booking request from the match flow
+12. Sign in as `demo-partner`, open `/me/partner/booking-requests` and confirm the booking
+13. Both players can open `/match-requests`, `/booking-requests` or `/notifications` and verify the linked booking result
+
 ### Fast admin flow
 
 1. Open `http://localhost:3000/demo/auth`
@@ -451,6 +467,15 @@ curl.exe "http://localhost:4000/api/v1/match-requests/incoming" `
 ```powershell
 curl.exe -X POST "http://localhost:4000/api/v1/match-requests/<MATCH_REQUEST_ID>/accept" `
   -H "Authorization: Bearer <PLAYER_ACCESS_TOKEN>"
+```
+
+### Create booking from accepted match request
+
+```powershell
+curl.exe -X POST "http://localhost:4000/api/v1/match-requests/<MATCH_REQUEST_ID>/create-booking" `
+  -H "Authorization: Bearer <PLAYER_ACCESS_TOKEN>" `
+  -H "Content-Type: application/json" `
+  -d "{\"venueId\":\"<VENUE_ID>\",\"courtId\":\"<COURT_ID>\",\"commentFromPlayer\":\"Бронь для принятого вызова\"}"
 ```
 
 ## Run e2e tests

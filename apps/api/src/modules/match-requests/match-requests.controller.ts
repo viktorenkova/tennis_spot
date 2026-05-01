@@ -5,6 +5,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
 import { Roles } from '../auth/roles.decorator';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
+import { BookingService } from '../booking/booking.service';
+import { CreateBookingFromMatchRequestDto } from '../booking/dto/create-booking-from-match-request.dto';
 import { CreateMatchRequestDto } from './dto/create-match-request.dto';
 import { MatchRequestsService } from './match-requests.service';
 
@@ -17,6 +19,8 @@ export class MatchRequestsController {
   constructor(
     @Inject(MatchRequestsService)
     private readonly matchRequestsService: MatchRequestsService,
+    @Inject(BookingService)
+    private readonly bookingService: BookingService,
   ) {}
 
   @Post()
@@ -47,5 +51,14 @@ export class MatchRequestsController {
   @Post(':id/cancel')
   cancel(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.matchRequestsService.cancel(user.sub, id);
+  }
+
+  @Post(':id/create-booking')
+  createBookingFromMatchRequest(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: CreateBookingFromMatchRequestDto,
+  ) {
+    return this.bookingService.createBookingFromMatchRequest(user.sub, id, dto);
   }
 }

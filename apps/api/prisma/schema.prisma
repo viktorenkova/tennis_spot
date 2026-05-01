@@ -83,6 +83,7 @@ enum NotificationType {
   match_request_accepted
   match_request_declined
   match_request_cancelled
+  match_booking_created
 }
 
 enum NotificationRelatedEntityType {
@@ -487,6 +488,7 @@ model BookingRequest {
   partnerProfileId  String               @map("partner_profile_id") @db.Uuid
   venueId           String               @map("venue_id") @db.Uuid
   courtId           String               @map("court_id") @db.Uuid
+  relatedMatchRequestId String?          @unique @map("related_match_request_id") @db.Uuid
   bookingDate       DateTime             @map("booking_date") @db.Date
   timeFrom          String               @map("time_from")
   timeTo            String               @map("time_to")
@@ -504,6 +506,7 @@ model BookingRequest {
   partnerProfile    PartnerProfile       @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
   venue             Venue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
   court             Court                @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  relatedMatchRequest MatchRequest?      @relation(fields: [relatedMatchRequestId], references: [id], onDelete: SetNull)
   statusHistory     BookingRequestStatusHistory[]
 
   @@index([playerProfileId])
@@ -544,6 +547,7 @@ model MatchRequest {
   updatedAt        DateTime           @updatedAt @map("updated_at")
   initiator        User               @relation("match_request_initiator", fields: [initiatorId], references: [id], onDelete: Cascade)
   opponent         User               @relation("match_request_opponent", fields: [opponentId], references: [id], onDelete: Cascade)
+  relatedBookingRequest BookingRequest?
 
   @@index([initiatorId, status, createdAt])
   @@index([opponentId, status, createdAt])

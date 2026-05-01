@@ -42,7 +42,8 @@ type NotificationType =
   | 'match_request_created'
   | 'match_request_accepted'
   | 'match_request_declined'
-  | 'match_request_cancelled';
+  | 'match_request_cancelled'
+  | 'match_booking_created';
 type NotificationRelatedEntityType = 'verification_request' | 'booking_request' | 'match_request';
 
 type UserRecord = {
@@ -261,6 +262,7 @@ type BookingRequestRecord = {
   partnerProfileId: string;
   venueId: string;
   courtId: string;
+  relatedMatchRequestId: string | null;
   bookingDate: Date;
   timeFrom: string;
   timeTo: string;
@@ -1718,6 +1720,7 @@ export class InMemoryPrismaService {
         partnerProfileId: data.partnerProfileId,
         venueId: data.venueId,
         courtId: data.courtId,
+        relatedMatchRequestId: data.relatedMatchRequestId ?? null,
         bookingDate: data.bookingDate,
         timeFrom: data.timeFrom,
         timeTo: data.timeTo,
@@ -1757,6 +1760,17 @@ export class InMemoryPrismaService {
       if (where?.partnerProfileId) {
         items = items.filter(
           (bookingRequest) => bookingRequest.partnerProfileId === where.partnerProfileId,
+        );
+      }
+
+      if (where?.courtId) {
+        items = items.filter((bookingRequest) => bookingRequest.courtId === where.courtId);
+      }
+
+      if (where?.relatedMatchRequestId) {
+        items = items.filter(
+          (bookingRequest) =>
+            bookingRequest.relatedMatchRequestId === where.relatedMatchRequestId,
         );
       }
 
@@ -2420,6 +2434,18 @@ export class InMemoryPrismaService {
               })),
           }
         : {}),
+      ...(include?.relatedMatchRequest
+        ? {
+            relatedMatchRequest: bookingRequest.relatedMatchRequestId
+              ? this.withMatchRequestIncludes(
+                  this.matchRequests.find(
+                    (matchRequest) => matchRequest.id === bookingRequest.relatedMatchRequestId,
+                  )!,
+                  include.relatedMatchRequest.include,
+                )
+              : null,
+          }
+        : {}),
     };
   }
 
@@ -2440,6 +2466,26 @@ export class InMemoryPrismaService {
               this.users.find((user) => user.id === matchRequest.opponentId)!,
               include.opponent.include,
             ),
+          }
+        : {}),
+      ...(include?.relatedBookingRequest
+        ? {
+            relatedBookingRequest: (() => {
+              const bookingRequest =
+                this.bookingRequests.find(
+                  (item) => item.relatedMatchRequestId === matchRequest.id,
+                ) ?? null;
+
+              if (!bookingRequest) {
+                return null;
+              }
+
+              return {
+                ...bookingRequest,
+                venue: this.venues.find((venue) => venue.id === bookingRequest.venueId) ?? null,
+                court: this.courts.find((court) => court.id === bookingRequest.courtId) ?? null,
+              };
+            })(),
           }
         : {}),
     };

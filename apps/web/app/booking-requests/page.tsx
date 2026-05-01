@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { DemoShell } from '../../src/components/demo-shell';
 import { Card, Notice, StatusBadge } from '../../src/components/ui';
 import { apiRequest } from '../../src/lib/api';
@@ -57,6 +58,21 @@ type BookingRequestListItem = {
     name: string;
     surfaceType: string;
   };
+  relatedMatchRequest: {
+    id: string;
+    initiator: {
+      playerProfile: {
+        firstName: string;
+        lastName: string;
+      } | null;
+    };
+    opponent: {
+      playerProfile: {
+        firstName: string;
+        lastName: string;
+      } | null;
+    };
+  } | null;
 };
 
 type BookingRequestDetails = BookingRequestListItem & {
@@ -125,6 +141,15 @@ type RequestForm = {
   commentFromPlayer: string;
 };
 
+type MatchPrefill = {
+  matchRequestId: string;
+  date: string;
+  timeFrom: string;
+  timeTo: string;
+  playersCount: string;
+  opponentName: string;
+};
+
 const initialSearchForm: SearchForm = {
   cityId: '',
   districtId: '',
@@ -184,7 +209,8 @@ function isValidPlayersCount(value: string) {
   return Number.isInteger(playersCount) && playersCount >= 1 && playersCount <= 8;
 }
 
-export default function BookingRequestsPage() {
+function BookingRequestsContent() {
+  const searchParams = useSearchParams();
   const { session, isLoaded } = useDemoSession();
   const [playerProfile, setPlayerProfile] = useState<PlayerProfile | null>(null);
   const [cities, setCities] = useState<City[]>([]);
@@ -193,6 +219,7 @@ export default function BookingRequestsPage() {
   const [selectedBooking, setSelectedBooking] = useState<BookingRequestDetails | null>(null);
   const [searchForm, setSearchForm] = useState<SearchForm>(initialSearchForm);
   const [requestForm, setRequestForm] = useState<RequestForm>(initialRequestForm);
+  const [matchPrefill, setMatchPrefill] = useState<MatchPrefill | null>(null);
   const [options, setOptions] = useState<BookingOption[]>([]);
   const [selectedOption, setSelectedOption] = useState<BookingOption | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -202,6 +229,36 @@ export default function BookingRequestsPage() {
   const [loading, setLoading] = useState(false);
   const [detailsLoadingId, setDetailsLoadingId] = useState<string | null>(null);
   const [districtsLoading, setDistrictsLoading] = useState(false);
+
+  useEffect(() => {
+    const matchRequestId = searchParams.get('matchRequestId');
+
+    if (!matchRequestId) {
+      return;
+    }
+
+    const nextPrefill: MatchPrefill = {
+      matchRequestId,
+      date: searchParams.get('date') ?? '',
+      timeFrom: searchParams.get('timeFrom') ?? '',
+      timeTo: searchParams.get('timeTo') ?? '',
+      playersCount: searchParams.get('playersCount') ?? '2',
+      opponentName: searchParams.get('opponentName') ?? 'Игрок',
+    };
+
+    setMatchPrefill(nextPrefill);
+    setSearchForm((current) => ({
+      ...current,
+      bookingDate: nextPrefill.date || current.bookingDate,
+      timeFrom: nextPrefill.timeFrom || current.timeFrom,
+      timeTo: nextPrefill.timeTo || current.timeTo,
+      playersCount: nextPrefill.playersCount || current.playersCount,
+    }));
+    setRequestForm((current) => ({
+      ...current,
+      playersCount: nextPrefill.playersCount || current.playersCount,
+    }));
+  }, [searchParams]);
 
   const loadDistricts = useCallback(async (cityId: string, preserveDistrictId?: string) => {
     if (!cityId) {
@@ -294,6 +351,8 @@ export default function BookingRequestsPage() {
       [key]: value,
     }));
   };
+
+  const lockedByMatch = Boolean(matchPrefill);
 
   const loadDetails = async (bookingRequestId: string) => {
     if (!session) {
@@ -423,18 +482,29 @@ export default function BookingRequestsPage() {
     setMessage(null);
     setError(null);
 
-    const response = await apiRequest<BookingRequestDetails>('/booking-requests', {
+    const bookingPath = matchPrefill
+      ? `/match-requests/${matchPrefill.matchRequestId}/create-booking`
+      : '/booking-requests';
+    const bookingPayload = matchPrefill
+      ? {
+          venueId: selectedOption.venue.id,
+          courtId: selectedOption.court.id,
+          commentFromPlayer: requestForm.commentFromPlayer || undefined,
+        }
+      : {
+          venueId: selectedOption.venue.id,
+          courtId: selectedOption.court.id,
+          bookingDate: searchForm.bookingDate,
+          timeFrom: selectedOption.availableInterval.timeFrom,
+          timeTo: selectedOption.availableInterval.timeTo,
+          playersCount,
+          commentFromPlayer: requestForm.commentFromPlayer || undefined,
+        };
+
+    const response = await apiRequest<BookingRequestDetails>(bookingPath, {
       method: 'POST',
       session,
-      body: JSON.stringify({
-        venueId: selectedOption.venue.id,
-        courtId: selectedOption.court.id,
-        bookingDate: searchForm.bookingDate,
-        timeFrom: selectedOption.availableInterval.timeFrom,
-        timeTo: selectedOption.availableInterval.timeTo,
-        playersCount,
-        commentFromPlayer: requestForm.commentFromPlayer || undefined,
-      }),
+      body: JSON.stringify(bookingPayload),
     });
 
     if (!response.success || !response.data) {
@@ -504,6 +574,12 @@ export default function BookingRequestsPage() {
       ) : null}
       {message ? <Notice kind="success">{message}</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
+      {matchPrefill ? (
+        <Notice kind="success">
+          Игра с игроком: <strong>{matchPrefill.opponentName}</strong>. Дата, время и количество
+          игроков взяты из принятого вызова.
+        </Notice>
+      ) : null}
 
       <div className="split-grid">
         <Card accent>
@@ -565,7 +641,7 @@ export default function BookingRequestsPage() {
                 type="date"
                 value={searchForm.bookingDate}
                 onChange={(event) => updateSearchForm('bookingDate', event.target.value)}
-                disabled={searchLoading || loading}
+                disabled={searchLoading || loading || lockedByMatch}
               />
             </label>
 
@@ -576,7 +652,7 @@ export default function BookingRequestsPage() {
                   type="time"
                   value={searchForm.timeFrom}
                   onChange={(event) => updateSearchForm('timeFrom', event.target.value)}
-                  disabled={searchLoading || loading}
+                  disabled={searchLoading || loading || lockedByMatch}
                 />
               </label>
 
@@ -586,7 +662,7 @@ export default function BookingRequestsPage() {
                   type="time"
                   value={searchForm.timeTo}
                   onChange={(event) => updateSearchForm('timeTo', event.target.value)}
-                  disabled={searchLoading || loading}
+                  disabled={searchLoading || loading || lockedByMatch}
                 />
               </label>
             </div>
@@ -629,7 +705,7 @@ export default function BookingRequestsPage() {
                 max="8"
                 value={searchForm.playersCount}
                 onChange={(event) => updateSearchForm('playersCount', event.target.value)}
-                disabled={searchLoading || loading}
+                disabled={searchLoading || loading || lockedByMatch}
               />
             </label>
           </div>
@@ -699,7 +775,7 @@ export default function BookingRequestsPage() {
                         playersCount: event.target.value,
                       }))
                     }
-                    disabled={!session || !playerProfile || loading}
+                    disabled={!session || !playerProfile || loading || lockedByMatch}
                   />
                 </label>
 
@@ -733,7 +809,7 @@ export default function BookingRequestsPage() {
                   onClick={() => void saveBookingRequest()}
                   disabled={!session || !playerProfile || loading}
                 >
-                  {loading ? 'Отправляем...' : 'Отправить заявку'}
+                  {loading ? 'Отправляем...' : matchPrefill ? 'Оформить бронь' : 'Отправить заявку'}
                 </button>
               </div>
             </>
@@ -836,6 +912,9 @@ export default function BookingRequestsPage() {
                     Игроков: {bookingRequest.playersCount} • Покрытие:{' '}
                     {formatSurface(bookingRequest.court.surfaceType)}
                   </span>
+                  {bookingRequest.relatedMatchRequest ? (
+                    <span>Связана с вызовом на игру</span>
+                  ) : null}
                   <span>
                     Комментарий партнёра:{' '}
                     {bookingRequest.commentFromPartner ? bookingRequest.commentFromPartner : 'пока нет'}
@@ -916,5 +995,13 @@ export default function BookingRequestsPage() {
         </Card>
       ) : null}
     </DemoShell>
+  );
+}
+
+export default function BookingRequestsPage() {
+  return (
+    <Suspense fallback={<Notice>Загружаем заявки на бронь...</Notice>}>
+      <BookingRequestsContent />
+    </Suspense>
   );
 }

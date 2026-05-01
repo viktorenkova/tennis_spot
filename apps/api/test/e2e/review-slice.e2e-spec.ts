@@ -241,6 +241,22 @@ describe('P1 review and booking slices (e2e)', () => {
       });
   }
 
+  function createBookingFromMatchRequest(
+    accessToken: string,
+    matchRequestId: string,
+    venueId: string,
+    courtId: string,
+  ) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/match-requests/${matchRequestId}/create-booking`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        venueId,
+        courtId,
+        commentFromPlayer: 'Booking for accepted challenge',
+      });
+  }
+
   function createMatchRequest(
     accessToken: string,
     opponentId: string,
@@ -1301,6 +1317,127 @@ describe('P1 review and booking slices (e2e)', () => {
       relatedEntityType: 'match_request',
       relatedEntityId: createResponse.body.data.id,
     });
+  });
+
+  it('lets a player create a booking request from an accepted match request', async () => {
+    const { venueId, courtId } = await prepareVerifiedInventory();
+    const initiatorToken = await demoLogin('demo-player');
+    const opponentToken = await demoLogin('demo-partner');
+
+    await createPlayerProfile(initiatorToken, 'Initiator', 'Player').expect(201);
+    const opponentProfileResponse = await createPlayerProfile(
+      opponentToken,
+      'Opponent',
+      'Player',
+    ).expect(201);
+
+    const matchResponse = await createMatchRequest(
+      initiatorToken,
+      opponentProfileResponse.body.data.userId,
+    ).expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/match-requests/${matchResponse.body.data.id}/accept`)
+      .set('Authorization', `Bearer ${opponentToken}`)
+      .send({})
+      .expect(201);
+
+    const bookingResponse = await createBookingFromMatchRequest(
+      initiatorToken,
+      matchResponse.body.data.id,
+      venueId,
+      courtId,
+    ).expect(201);
+
+    expect(bookingResponse.body.data).toMatchObject({
+      status: 'pending',
+      relatedMatchRequestId: matchResponse.body.data.id,
+      bookingDate: '2099-04-20T00:00:00.000Z',
+      timeFrom: '18:00',
+      timeTo: '19:30',
+      playersCount: 2,
+    });
+
+    const outgoingResponse = await request(app.getHttpServer())
+      .get('/api/v1/match-requests/outgoing')
+      .set('Authorization', `Bearer ${initiatorToken}`)
+      .expect(200);
+
+    expect(outgoingResponse.body.data[0].relatedBookingRequest).toMatchObject({
+      id: bookingResponse.body.data.id,
+      status: 'pending',
+    });
+
+    const opponentNotificationsResponse = await getNotifications(opponentToken).expect(200);
+    expect(opponentNotificationsResponse.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'match_booking_created',
+          relatedEntityType: 'booking_request',
+          relatedEntityId: bookingResponse.body.data.id,
+        }),
+      ]),
+    );
+  });
+
+  it('validates match-to-booking creation rules', async () => {
+    const { venueId, courtId } = await prepareVerifiedInventory();
+    const initiatorToken = await demoLogin('demo-player');
+    const opponentToken = await demoLogin('demo-partner');
+    const foreignToken = await demoLogin('review-partner');
+
+    await createPlayerProfile(initiatorToken, 'Initiator', 'Player').expect(201);
+    const opponentProfileResponse = await createPlayerProfile(
+      opponentToken,
+      'Opponent',
+      'Player',
+    ).expect(201);
+    await createPlayerProfile(foreignToken, 'Foreign', 'Player').expect(201);
+
+    const pendingMatchResponse = await createMatchRequest(
+      initiatorToken,
+      opponentProfileResponse.body.data.userId,
+    ).expect(201);
+
+    const beforeAcceptResponse = await createBookingFromMatchRequest(
+      initiatorToken,
+      pendingMatchResponse.body.data.id,
+      venueId,
+      courtId,
+    ).expect(409);
+
+    expect(beforeAcceptResponse.body.error.code).toBe('MATCH_REQUEST_INVALID_TRANSITION');
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/match-requests/${pendingMatchResponse.body.data.id}/accept`)
+      .set('Authorization', `Bearer ${opponentToken}`)
+      .send({})
+      .expect(201);
+
+    const foreignResponse = await createBookingFromMatchRequest(
+      foreignToken,
+      pendingMatchResponse.body.data.id,
+      venueId,
+      courtId,
+    ).expect(404);
+
+    expect(foreignResponse.body.error.code).toBe('MATCH_REQUEST_NOT_FOUND');
+
+    await createBookingFromMatchRequest(
+      initiatorToken,
+      pendingMatchResponse.body.data.id,
+      venueId,
+      courtId,
+    ).expect(201);
+
+    const duplicateResponse = await createBookingFromMatchRequest(
+      initiatorToken,
+      pendingMatchResponse.body.data.id,
+      venueId,
+      courtId,
+    ).expect(409);
+
+    expect(duplicateResponse.body.error.code).toBe('MATCH_REQUEST_BOOKING_ALREADY_EXISTS');
   });
 
   it('validates match request negative cases', async () => {

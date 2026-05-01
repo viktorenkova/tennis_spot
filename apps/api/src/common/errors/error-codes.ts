@@ -30,4 +30,5 @@ export const ERROR_CODES = {
   matchRequestInvalidTransition: 'MATCH_REQUEST_INVALID_TRANSITION',
   matchRequestInvalidOpponent: 'MATCH_REQUEST_INVALID_OPPONENT',
   matchRequestInvalidSchedule: 'MATCH_REQUEST_INVALID_SCHEDULE',
+  matchRequestBookingAlreadyExists: 'MATCH_REQUEST_BOOKING_ALREADY_EXISTS',
 } as const;

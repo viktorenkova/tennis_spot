@@ -1,13 +1,16 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { DemoShell } from '../../src/components/demo-shell';
 import { Card, Notice, StatusBadge } from '../../src/components/ui';
 import { apiRequest } from '../../src/lib/api';
 import {
+  formatBookingRequestStatus,
   formatDate,
   formatMatchRequestFormat,
   formatMatchRequestStatus,
+  getBookingRequestStatusTone,
   getMatchRequestStatusTone,
 } from '../../src/lib/labels';
 import { useDemoSession } from '../../src/lib/session';
@@ -38,6 +41,19 @@ type MatchRequest = {
   opponent: {
     playerProfile: PlayerProfile | null;
   };
+  relatedBookingRequest: {
+    id: string;
+    status: string;
+    bookingDate: string;
+    timeFrom: string;
+    timeTo: string;
+    venue: {
+      name: string;
+    } | null;
+    court: {
+      name: string;
+    } | null;
+  } | null;
 };
 
 function getPlayerName(profile: PlayerProfile | null) {
@@ -56,7 +72,16 @@ function getLocation(profile: PlayerProfile | null) {
   return [profile.city?.name, profile.district?.name].filter(Boolean).join(', ') || 'Локация не указана';
 }
 
+function getPlayersCountForFormat(format: string) {
+  return format === 'doubles' ? 4 : 2;
+}
+
+function getMatchBookingLabel(status: string) {
+  return status === 'confirmed' ? 'Бронь подтверждена' : 'Бронь создана';
+}
+
 export default function MatchRequestsPage() {
+  const router = useRouter();
   const { session, isLoaded } = useDemoSession();
   const [incoming, setIncoming] = useState<MatchRequest[]>([]);
   const [outgoing, setOutgoing] = useState<MatchRequest[]>([]);
@@ -122,6 +147,19 @@ export default function MatchRequestsPage() {
     await loadData();
   }
 
+  function openBookingFlow(matchRequest: MatchRequest, opponentProfile: PlayerProfile | null) {
+    const params = new URLSearchParams({
+      matchRequestId: matchRequest.id,
+      date: matchRequest.proposedDate.slice(0, 10),
+      timeFrom: matchRequest.proposedTimeFrom,
+      timeTo: matchRequest.proposedTimeTo,
+      playersCount: String(getPlayersCountForFormat(matchRequest.format)),
+      opponentName: getPlayerName(opponentProfile),
+    });
+
+    router.push(`/booking-requests?${params.toString()}`);
+  }
+
   return (
     <DemoShell
       title="Вызовы на игру"
@@ -160,6 +198,11 @@ export default function MatchRequestsPage() {
                     <StatusBadge tone={getMatchRequestStatusTone(matchRequest.status)}>
                       {formatMatchRequestStatus(matchRequest.status)}
                     </StatusBadge>
+                    {matchRequest.relatedBookingRequest ? (
+                      <StatusBadge tone={getBookingRequestStatusTone(matchRequest.relatedBookingRequest.status)}>
+                        {getMatchBookingLabel(matchRequest.relatedBookingRequest.status)}
+                      </StatusBadge>
+                    ) : null}
                     {matchRequest.status === 'pending' ? (
                       <>
                         <button
@@ -179,6 +222,22 @@ export default function MatchRequestsPage() {
                           Отклонить
                         </button>
                       </>
+                    ) : null}
+                    {matchRequest.status === 'accepted' && !matchRequest.relatedBookingRequest ? (
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() =>
+                          openBookingFlow(matchRequest, matchRequest.initiator.playerProfile)
+                        }
+                      >
+                        Оформить бронь
+                      </button>
+                    ) : null}
+                    {matchRequest.relatedBookingRequest ? (
+                      <span className="muted">
+                        {formatBookingRequestStatus(matchRequest.relatedBookingRequest.status)}
+                      </span>
                     ) : null}
                   </div>
                 </article>
@@ -211,6 +270,11 @@ export default function MatchRequestsPage() {
                     <StatusBadge tone={getMatchRequestStatusTone(matchRequest.status)}>
                       {formatMatchRequestStatus(matchRequest.status)}
                     </StatusBadge>
+                    {matchRequest.relatedBookingRequest ? (
+                      <StatusBadge tone={getBookingRequestStatusTone(matchRequest.relatedBookingRequest.status)}>
+                        {getMatchBookingLabel(matchRequest.relatedBookingRequest.status)}
+                      </StatusBadge>
+                    ) : null}
                     {matchRequest.status === 'pending' ? (
                       <button
                         type="button"
@@ -220,6 +284,22 @@ export default function MatchRequestsPage() {
                       >
                         Отменить
                       </button>
+                    ) : null}
+                    {matchRequest.status === 'accepted' && !matchRequest.relatedBookingRequest ? (
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() =>
+                          openBookingFlow(matchRequest, matchRequest.opponent.playerProfile)
+                        }
+                      >
+                        Оформить бронь
+                      </button>
+                    ) : null}
+                    {matchRequest.relatedBookingRequest ? (
+                      <span className="muted">
+                        {formatBookingRequestStatus(matchRequest.relatedBookingRequest.status)}
+                      </span>
                     ) : null}
                   </div>
                 </article>

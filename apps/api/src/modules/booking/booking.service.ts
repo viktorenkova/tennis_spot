@@ -5,6 +5,7 @@ import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CourtAvailabilityService } from '../court-schedule/court-availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CreateBookingFromMatchRequestDto } from './dto/create-booking-from-match-request.dto';
 import { CreateBookingRequestDto } from './dto/create-booking-request.dto';
 import { FindBookingOptionsQueryDto } from './dto/find-booking-options-query.dto';
 
@@ -25,6 +26,20 @@ const bookingListInclude = Prisma.validator<Prisma.BookingRequestInclude>()({
     },
   },
   court: true,
+  relatedMatchRequest: {
+    include: {
+      initiator: {
+        include: {
+          playerProfile: true,
+        },
+      },
+      opponent: {
+        include: {
+          playerProfile: true,
+        },
+      },
+    },
+  },
 });
 
 const bookingDetailsInclude = Prisma.validator<Prisma.BookingRequestInclude>()({
@@ -253,6 +268,168 @@ export class BookingService {
         'booking_created',
         'Новая заявка на бронирование',
         `Игрок отправил заявку на ${venue.name}, ${court.name}: ${dto.bookingDate} ${dto.timeFrom} - ${dto.timeTo}.`,
+        {
+          type: 'booking_request',
+          id: bookingRequest.id,
+        },
+        tx,
+      );
+
+      return tx.bookingRequest.findUnique({
+        where: {
+          id: bookingRequest.id,
+        },
+        include: bookingDetailsInclude,
+      });
+    });
+  }
+
+  async createBookingFromMatchRequest(
+    userId: string,
+    matchRequestId: string,
+    dto: CreateBookingFromMatchRequestDto,
+  ) {
+    const matchRequest = await this.prisma.matchRequest.findUnique({
+      where: {
+        id: matchRequestId,
+      },
+      include: {
+        initiator: {
+          include: {
+            playerProfile: true,
+          },
+        },
+        opponent: {
+          include: {
+            playerProfile: true,
+          },
+        },
+        relatedBookingRequest: true,
+      },
+    });
+
+    if (
+      !matchRequest ||
+      (matchRequest.initiatorId !== userId && matchRequest.opponentId !== userId)
+    ) {
+      throw new AppError(HttpStatus.NOT_FOUND, {
+        code: ERROR_CODES.matchRequestNotFound,
+        message: 'Вызов на игру не найден.',
+      });
+    }
+
+    if (matchRequest.status !== 'accepted') {
+      throw new AppError(HttpStatus.CONFLICT, {
+        code: ERROR_CODES.matchRequestInvalidTransition,
+        message: 'Бронь можно оформить только для принятого вызова.',
+      });
+    }
+
+    if (matchRequest.relatedBookingRequest) {
+      throw new AppError(HttpStatus.CONFLICT, {
+        code: ERROR_CODES.matchRequestBookingAlreadyExists,
+        message: 'Для этого вызова уже создана бронь.',
+      });
+    }
+
+    const existingBooking = await this.prisma.bookingRequest.findFirst({
+      where: {
+        relatedMatchRequestId: matchRequest.id,
+      },
+    });
+
+    if (existingBooking) {
+      throw new AppError(HttpStatus.CONFLICT, {
+        code: ERROR_CODES.matchRequestBookingAlreadyExists,
+        message: 'Для этого вызова уже создана бронь.',
+      });
+    }
+
+    const playerProfile = await this.getPlayerProfileOrThrow(userId);
+    const venue = await this.getBookableVenueOrThrow(dto.venueId);
+    const court = await this.getBookableCourtOrThrow(dto.venueId, dto.courtId);
+    const bookingDateText = this.formatDateForAvailability(matchRequest.proposedDate);
+    const bookingDate = this.parseBookingDate(bookingDateText);
+    const durationMinutes = this.getDurationMinutes(
+      matchRequest.proposedTimeFrom,
+      matchRequest.proposedTimeTo,
+    );
+    const playersCount = this.getPlayersCountForMatchFormat(matchRequest.format);
+
+    await this.courtAvailabilityService.ensureCourtBookableInterval(
+      court.id,
+      bookingDateText,
+      matchRequest.proposedTimeFrom,
+      matchRequest.proposedTimeTo,
+    );
+
+    const secondPlayerId =
+      userId === matchRequest.initiatorId ? matchRequest.opponentId : matchRequest.initiatorId;
+
+    return this.prisma.$transaction(async (tx) => {
+      const bookingRequest = await tx.bookingRequest.create({
+        data: {
+          playerProfileId: playerProfile.id,
+          partnerProfileId: venue.partnerProfileId,
+          venueId: venue.id,
+          courtId: court.id,
+          relatedMatchRequestId: matchRequest.id,
+          bookingDate,
+          timeFrom: matchRequest.proposedTimeFrom,
+          timeTo: matchRequest.proposedTimeTo,
+          durationMinutes,
+          playersCount,
+          commentFromPlayer: dto.commentFromPlayer,
+          status: 'pending',
+          submittedAt: new Date(),
+        },
+      });
+
+      await tx.bookingRequestStatusHistory.create({
+        data: {
+          bookingRequestId: bookingRequest.id,
+          oldStatus: 'draft',
+          newStatus: 'pending',
+          changedByUserId: userId,
+          comment: dto.commentFromPlayer ?? null,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorUserId: userId,
+          action: 'booking_request.created_from_match',
+          targetEntity: 'booking_request',
+          targetId: bookingRequest.id,
+          metadata: {
+            relatedMatchRequestId: matchRequest.id,
+            playerProfileId: playerProfile.id,
+            partnerProfileId: venue.partnerProfileId,
+            venueId: venue.id,
+            courtId: court.id,
+            previousStatus: 'draft',
+            nextStatus: 'pending',
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      await this.notificationsService.createNotification(
+        venue.partnerProfile.ownerUserId,
+        'booking_created',
+        'Новая заявка на бронирование',
+        `Игрок отправил заявку на ${venue.name}, ${court.name}: ${bookingDateText} ${matchRequest.proposedTimeFrom} - ${matchRequest.proposedTimeTo}.`,
+        {
+          type: 'booking_request',
+          id: bookingRequest.id,
+        },
+        tx,
+      );
+
+      await this.notificationsService.createNotification(
+        secondPlayerId,
+        'match_booking_created',
+        'Создана бронь для вашей игры',
+        `Игрок оформил бронь для игры на ${bookingDateText} ${matchRequest.proposedTimeFrom} - ${matchRequest.proposedTimeTo}.`,
         {
           type: 'booking_request',
           id: bookingRequest.id,
@@ -707,6 +884,10 @@ export class BookingService {
     }
 
     return end - start;
+  }
+
+  private getPlayersCountForMatchFormat(format: string) {
+    return format === 'doubles' ? 4 : 2;
   }
 
   private parseTimeToMinutes(value: string) {

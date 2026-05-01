@@ -27,6 +27,25 @@ const matchRequestInclude = Prisma.validator<Prisma.MatchRequestInclude>()({
       },
     },
   },
+  relatedBookingRequest: {
+    select: {
+      id: true,
+      status: true,
+      bookingDate: true,
+      timeFrom: true,
+      timeTo: true,
+      venue: {
+        select: {
+          name: true,
+        },
+      },
+      court: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  },
 });
 
 @Injectable()
