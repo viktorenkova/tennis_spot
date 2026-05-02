@@ -73,13 +73,13 @@ export default function PartnerVerificationPage() {
     if (partnerResponse.success) {
       setPartnerProfile(partnerResponse.data ?? null);
     } else {
-      setError(partnerResponse.error?.message ?? 'Не удалось загрузить профиль партнера.');
+      setError(partnerResponse.error?.message ?? 'Не удалось загрузить данные профиля.');
     }
 
     if (requestResponse.success) {
       setRequest(requestResponse.data ?? null);
     } else if (requestResponse.error?.code !== 'PARTNER_PROFILE_NOT_FOUND') {
-      setError(requestResponse.error?.message ?? 'Не удалось загрузить заявку на верификацию.');
+      setError(requestResponse.error?.message ?? 'Не удалось загрузить заявку.');
     }
   }, [session]);
 
@@ -120,7 +120,7 @@ export default function PartnerVerificationPage() {
     }
 
     if (!selectedFile) {
-      setError('Сначала выберите файл документа.');
+      setError('Сначала выберите документ.');
       return;
     }
 
@@ -141,13 +141,13 @@ export default function PartnerVerificationPage() {
     });
 
     if (!response.success) {
-      setError(response.error?.message ?? 'Не удалось добавить документ.');
+      setError(response.error?.message ?? 'Не удалось загрузить документ.');
       setLoading(false);
       return;
     }
 
     setSelectedFile(null);
-    setMessage('Документ добавлен к заявке.');
+    setMessage('Документ загружен.');
     setLoading(false);
     await loadData();
   };
@@ -180,18 +180,18 @@ export default function PartnerVerificationPage() {
 
   return (
     <DemoShell
-      title="Верификация партнера"
+      title="Верификация партнёра"
       description="Проверьте статус профиля, прикрепите документы и отправьте заявку на рассмотрение."
     >
       {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
       {isLoaded && !session ? (
         <Notice kind="error">
-          Сначала войдите через страницу демо-входа, а затем откройте верификацию партнера.
+          Сначала войдите через страницу демо-входа, а затем откройте верификацию партнёра.
         </Notice>
       ) : null}
       {!partnerProfile && session ? (
         <Notice kind="error">
-          Сначала сохраните профиль партнера. После этого можно переходить к верификации.
+          Сначала сохраните профиль партнёра. После этого можно переходить к верификации.
         </Notice>
       ) : null}
       {message ? <Notice kind="success">{message}</Notice> : null}
@@ -239,7 +239,7 @@ export default function PartnerVerificationPage() {
           <h3>Документы</h3>
           <div className="form-stack">
             <label className="field">
-              <span>Тип документа</span>
+              <span>Что подтверждает документ</span>
               <select
                 value={documentType}
                 onChange={(event) =>
@@ -261,20 +261,24 @@ export default function PartnerVerificationPage() {
               <span>Название документа</span>
               <input
                 value={selectedFile?.name ?? ''}
-                placeholder="После выбора файла название появится здесь"
+                placeholder="После выбора файла имя появится здесь"
                 readOnly
               />
             </label>
 
-            <label className="field">
+            <div className="field file-upload-field">
               <span>Файл</span>
               <input
+                id="verification-document-file"
                 type="file"
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                 onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
                 disabled={!canAddDocument}
               />
-            </label>
+              <label className="secondary-button file-upload-button" htmlFor="verification-document-file">
+                Загрузить документ
+              </label>
+            </div>
 
             {selectedFileSummary ? <p className="helper-copy">{selectedFileSummary}</p> : null}
           </div>
@@ -285,7 +289,7 @@ export default function PartnerVerificationPage() {
             onClick={addDocument}
             disabled={!canAddDocument}
           >
-            {loading ? 'Добавляем...' : 'Добавить документ'}
+            {loading ? 'Загрузка...' : 'Загрузить документ'}
           </button>
         </Card>
 
@@ -307,7 +311,7 @@ export default function PartnerVerificationPage() {
             </Notice>
           ) : null}
           <div className="info-list compact-list">
-            <p>Профиль партнера должен быть сохранен.</p>
+            <p>Профиль партнёра должен быть сохранён.</p>
             <p>Для отправки нужен хотя бы один документ.</p>
             <p>После отправки статус изменится на «На проверке».</p>
           </div>
@@ -325,13 +329,12 @@ export default function PartnerVerificationPage() {
       <Card>
         <h3>Что уже прикреплено</h3>
         {!request?.documents.length ? (
-          <p className="muted">Документы пока не добавлены.</p>
+          <p className="muted">Документы пока не загружены. Добавьте документ, чтобы отправить заявку.</p>
         ) : (
           <ul className="bullet-list">
             {request.documents.map((document) => (
               <li key={document.id}>
-                {formatDocumentType(document.documentType)}: {document.file.originalName} (
-                {document.file.mimeType || 'тип не указан'})
+                {formatDocumentType(document.documentType)}: {document.file.originalName}
               </li>
             ))}
           </ul>

@@ -209,7 +209,7 @@ export default function NotificationsPage() {
         </div>
 
         {notifications.length === 0 ? (
-          <p className="muted">Пока нет уведомлений. Они появятся после действий в booking и verification flow.</p>
+          <p className="muted">Пока нет уведомлений. Они появятся после бронирований, вызовов, жалоб или проверки профиля.</p>
         ) : (
           <div className="list-stack">
             {notifications.map((notification) => {

@@ -145,13 +145,13 @@ export default function PlayerDetailsPage() {
     }
 
     setCreatedRequest(response.data);
-    setMessage('Вызов отправлен игроку.');
+    setMessage('Вызов отправлен.');
   }
 
   return (
     <DemoShell
       title="Карточка игрока"
-      description="Посмотрите базовую информацию и отправьте ручной вызов на игру."
+      description="Посмотрите информацию об игроке и предложите сыграть."
     >
       {!isLoaded ? <Notice>Проверяем текущую демо-сессию...</Notice> : null}
       {isLoaded && !session ? (
@@ -179,14 +179,14 @@ export default function PlayerDetailsPage() {
                 <strong>Уровень:</strong> {formatNtrp(player.ntrpSelfRating)}
               </p>
               <p>
-                <strong>Описание:</strong> {player.bio ?? 'Описание пока не заполнено'}
+                <strong>О себе:</strong> {player.bio ?? 'Игрок пока не добавил информацию о себе'}
               </p>
             </div>
           </Card>
 
           <Card>
             <h3>Бросить вызов</h3>
-            <p className="muted">Это приглашение на игру, без бронирования корта и без чата.</p>
+            <p className="muted">Предложите дату, время и формат игры.</p>
             <div className="form-stack">
               <label className="field">
                 <span>Дата</span>

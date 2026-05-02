@@ -29,7 +29,7 @@ function resolveApiBaseUrl() {
 
 function getFriendlyNetworkMessage(error: unknown) {
   if (!(error instanceof Error)) {
-    return 'Не удалось выполнить запрос к серверу.';
+    return 'Не удалось загрузить данные. Проверьте подключение и попробуйте снова.';
   }
 
   const message = error.message.toLowerCase();
@@ -41,10 +41,10 @@ function getFriendlyNetworkMessage(error: unknown) {
     message.includes('load failed') ||
     message.includes('econnrefused')
   ) {
-    return 'Не удалось подключиться к серверу. Проверьте, что backend запущен.';
+    return 'Не удалось загрузить данные. Проверьте подключение и попробуйте снова.';
   }
 
-  return 'Не удалось выполнить запрос к серверу.';
+  return 'Ошибка сервера. Попробуйте снова чуть позже.';
 }
 
 function formatFieldErrors(fields?: Record<string, string[]>) {
@@ -98,7 +98,7 @@ export async function apiRequest<T>(
           meta: {},
           error: {
             code: 'INVALID_RESPONSE',
-            message: 'Сервер вернул непонятный ответ. Обновите страницу и попробуйте снова.',
+            message: 'Ошибка сервера. Обновите страницу и попробуйте снова.',
           },
         };
       }
@@ -118,7 +118,7 @@ export async function apiRequest<T>(
       meta: {},
       error: {
         code: 'INVALID_RESPONSE',
-        message: 'Сервер вернул пустой или непонятный ответ.',
+        message: 'Ошибка сервера. Данные не загрузились.',
       },
     };
   } catch (error) {

@@ -26,6 +26,12 @@ type PlayerProfile = {
   ntrpSelfRating: string | number | null;
   cityId: string | null;
   districtId: string | null;
+  visibilitySettings: {
+    showPhone: boolean;
+    profileVisibleToAuthenticated: boolean;
+    showCity: boolean;
+    showAvailability: boolean;
+  } | null;
 };
 
 type UserAccount = {
@@ -56,6 +62,7 @@ const emptyForm = {
   cityId: '',
   districtId: '',
   email: '',
+  showPhone: false,
 };
 
 export default function PlayerProfilePage() {
@@ -180,6 +187,7 @@ export default function PlayerProfilePage() {
           ntrpSelfRating: nextProfile.ntrpSelfRating ? String(nextProfile.ntrpSelfRating) : '',
           cityId: nextProfile.cityId ?? '',
           districtId: nextProfile.districtId ?? '',
+          showPhone: nextProfile.visibilitySettings?.showPhone ?? false,
         }));
 
         if (nextProfile.cityId) {
@@ -256,6 +264,20 @@ export default function PlayerProfilePage() {
     }
 
     const savedProfile = profileResponse.data;
+    const visibilityResponse = await apiRequest('/player/profile/me/visibility', {
+      method: 'PATCH',
+      session,
+      body: JSON.stringify({
+        showPhone: form.showPhone,
+      }),
+    });
+
+    if (!visibilityResponse.success) {
+      setError(visibilityResponse.error?.message ?? 'Не удалось сохранить настройки видимости.');
+      setLoading(false);
+      return;
+    }
+
     setProfile(savedProfile);
     setForm({
       firstName: savedProfile.firstName ?? '',
@@ -265,9 +287,10 @@ export default function PlayerProfilePage() {
       cityId: savedProfile.cityId ?? '',
       districtId: savedProfile.districtId ?? '',
       email: nextAccount.email ?? '',
+      showPhone: form.showPhone,
     });
     syncSessionUser(nextAccount);
-    setMessage(profile ? 'Изменения сохранены.' : 'Профиль игрока создан.');
+    setMessage('Профиль сохранён.');
     setLoading(false);
   };
 
@@ -353,10 +376,21 @@ export default function PlayerProfilePage() {
                 disabled={!session}
               />
             </label>
+
+            <label className="choice-chip">
+              <input
+                type="checkbox"
+                checked={form.showPhone}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, showPhone: event.target.checked }))
+                }
+                disabled={!session}
+              />
+              <span>Показывать телефон другим игрокам</span>
+            </label>
           </div>
           <p className="helper-copy">
-            Телефон берется из аккаунта. Email можно обновить здесь, чтобы использовать его в
-            дальнейшем сценарии.
+            Телефон берётся из аккаунта. Email можно обновить здесь; он не показывается другим без отдельного сценария.
           </p>
         </Card>
       </div>
@@ -393,7 +427,7 @@ export default function PlayerProfilePage() {
             {showNtrpHelp ? (
               <p className="helper-copy">
                 NTRP — это шкала уровня игры в теннис. Сейчас вы указываете самооценку, а позже
-                уровень можно будет подтвердить через клуб или партнера.
+                уровень можно будет подтвердить через клуб или партнёра.
               </p>
             ) : null}
           </div>
@@ -418,29 +452,31 @@ export default function PlayerProfilePage() {
               </select>
             </label>
 
-            <label className="field">
-              <span>Район / округ</span>
-              <select
-                value={form.districtId}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, districtId: event.target.value }))
-                }
-                disabled={!session || !form.cityId || districtsLoading}
-              >
-                <option value="">
-                  {!form.cityId
-                    ? 'Сначала выберите город'
-                    : districtsLoading
-                      ? 'Загружаем районы и округа...'
-                      : 'Выберите район или округ'}
-                </option>
-                {districts.map((district) => (
-                  <option key={district.id} value={district.id}>
-                    {district.name}
+            {!form.cityId || districtsLoading || districts.length ? (
+              <label className="field">
+                <span>Район / округ</span>
+                <select
+                  value={form.districtId}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, districtId: event.target.value }))
+                  }
+                  disabled={!session || !form.cityId || districtsLoading}
+                >
+                  <option value="">
+                    {!form.cityId
+                      ? 'Сначала выберите город'
+                      : districtsLoading
+                        ? 'Загрузка...'
+                        : 'Выберите район или округ'}
                   </option>
-                ))}
-              </select>
-            </label>
+                  {districts.map((district) => (
+                    <option key={district.id} value={district.id}>
+                      {district.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
         </Card>
       </div>
@@ -448,10 +484,10 @@ export default function PlayerProfilePage() {
       <Card>
         <h3>О себе</h3>
         <label className="field">
-          <span>Коротко о себе</span>
+          <span>Информация для других игроков</span>
           <textarea
             value={form.bio}
-            placeholder="Например: играю 2 раза в неделю, предпочитаю хард, ищу соперников уровня 3.0–3.5 по вечерам."
+            placeholder="Опишите ваш уровень игры, стиль, предпочтения..."
             onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))}
             disabled={!session}
           />

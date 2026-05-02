@@ -15,7 +15,7 @@ const demoUsers: Array<{ key: DemoUserKey; title: string; copy: string }> = [
   {
     key: 'demo-partner',
     title: 'Партнер',
-    copy: 'Подходит для заполнения профиля партнера и отправки заявки на верификацию.',
+    copy: 'Подходит для заполнения профиля партнёра и отправки заявки на верификацию.',
   },
   {
     key: 'demo-admin',

@@ -235,7 +235,12 @@ export default function MatchRequestsPage() {
       return;
     }
 
-    setMessage('Статус вызова обновлён.');
+    const actionMessages = {
+      accept: 'Вызов принят.',
+      decline: 'Вызов отклонён.',
+      cancel: 'Вызов отменён.',
+    };
+    setMessage(actionMessages[action]);
     await loadData();
   }
 
@@ -264,7 +269,7 @@ export default function MatchRequestsPage() {
   return (
     <DemoShell
       title="Вызовы на игру"
-      description="Входящие и исходящие ручные вызовы между игроками. Без чата, бронирования и алгоритмов подбора."
+      description="Входящие и исходящие вызовы между игроками. Примите вызов или предложите сыграть сами."
     >
       {!isLoaded ? <Notice>Проверяем текущую демо-сессию...</Notice> : null}
       {isLoaded && !session ? (
@@ -281,7 +286,7 @@ export default function MatchRequestsPage() {
             <StatusBadge tone="neutral">{incoming.length}</StatusBadge>
           </div>
           {!incoming.length ? (
-            <p className="muted">Пока никто не отправил вам вызов.</p>
+            <p className="muted">У вас пока нет входящих вызовов.</p>
           ) : (
             <div className="list-stack">
               {incoming.map((matchRequest) => (
@@ -354,7 +359,7 @@ export default function MatchRequestsPage() {
             <StatusBadge tone="neutral">{outgoing.length}</StatusBadge>
           </div>
           {!outgoing.length ? (
-            <p className="muted">Вы ещё не отправляли вызовы другим игрокам.</p>
+            <p className="muted">У вас пока нет вызовов. Найдите игрока и предложите сыграть.</p>
           ) : (
             <div className="list-stack">
               {outgoing.map((matchRequest) => (

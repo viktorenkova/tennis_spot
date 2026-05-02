@@ -665,9 +665,10 @@ export default function PartnerVenuesPage() {
             </label>
 
             <label className="field">
-              <span>Описание</span>
+              <span>Информация для игроков</span>
               <textarea
                 value={venueForm.description}
+                placeholder="Опишите вход, покрытие, парковку, раздевалки или другие важные детали."
                 onChange={(event) =>
                   setVenueForm((current) => ({ ...current, description: event.target.value }))
                 }
@@ -691,29 +692,31 @@ export default function PartnerVenuesPage() {
               </select>
             </label>
 
-            <label className="field">
-              <span>Район / округ</span>
-              <select
-                value={venueForm.districtId}
-                onChange={(event) =>
-                  setVenueForm((current) => ({ ...current, districtId: event.target.value }))
-                }
-                disabled={!session || !partnerProfile || !venueForm.cityId || districtsLoading}
-              >
-                <option value="">
-                  {!venueForm.cityId
-                    ? 'Сначала выберите город'
-                    : districtsLoading
-                      ? 'Загружаем районы...'
-                      : 'Выберите район'}
-                </option>
-                {districts.map((district) => (
-                  <option key={district.id} value={district.id}>
-                    {district.name}
+            {!venueForm.cityId || districtsLoading || districts.length ? (
+              <label className="field">
+                <span>Район / округ</span>
+                <select
+                  value={venueForm.districtId}
+                  onChange={(event) =>
+                    setVenueForm((current) => ({ ...current, districtId: event.target.value }))
+                  }
+                  disabled={!session || !partnerProfile || !venueForm.cityId || districtsLoading}
+                >
+                  <option value="">
+                    {!venueForm.cityId
+                      ? 'Сначала выберите город'
+                      : districtsLoading
+                        ? 'Загрузка...'
+                        : 'Выберите район'}
                   </option>
-                ))}
-              </select>
-            </label>
+                  {districts.map((district) => (
+                    <option key={district.id} value={district.id}>
+                      {district.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
             <label className="field">
               <span>Адрес</span>
@@ -816,7 +819,7 @@ export default function PartnerVenuesPage() {
           <h3>Что уже заведено</h3>
           {!venues.length ? (
             <p className="muted">
-              Площадок пока нет. Создайте первую локацию и затем добавьте корты с расписанием.
+              Площадок пока нет. Создайте первую площадку и добавьте корты с расписанием.
             </p>
           ) : (
             <div className="list-stack">
@@ -989,8 +992,7 @@ export default function PartnerVenuesPage() {
 
             {!venue.courts.length ? (
               <Notice>
-                Для этой площадки пока нет кортов. Добавьте хотя бы один, чтобы подготовить booking
-                flow и расписание.
+                Для этой площадки пока нет кортов. Добавьте хотя бы один корт, чтобы игроки могли отправлять заявки на бронь.
               </Notice>
             ) : null}
 

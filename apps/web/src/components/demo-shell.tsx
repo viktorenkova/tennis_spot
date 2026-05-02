@@ -7,34 +7,28 @@ import { hasRole, useDemoSession } from '../lib/session';
 
 const navigation = [
   {
-    title: 'Обзор',
+    title: 'Основное',
     items: [
       { href: '/', label: 'Главная' },
-      { href: '/demo/auth', label: 'Вход в демо' },
+      { href: '/booking-requests', label: 'Корты / Бронирование' },
+      { href: '/players', label: 'Игроки' },
+      { href: '/match-requests', label: 'Вызовы' },
+      { href: '/complaints', label: 'Жалобы' },
       { href: '/notifications', label: 'Уведомления' },
     ],
   },
   {
-    title: 'Сценарий игрока',
+    title: 'Профиль',
     items: [
       { href: '/me/player', label: 'Профиль игрока' },
-      { href: '/players', label: 'Каталог игроков' },
-      { href: '/match-requests', label: 'Вызовы на игру' },
-      { href: '/booking-requests', label: 'Заявки на бронь' },
-      { href: '/complaints', label: 'Мои жалобы' },
-    ],
-  },
-  {
-    title: 'Сценарий партнёра',
-    items: [
       { href: '/me/partner', label: 'Профиль партнёра' },
-      { href: '/me/partner/venues', label: 'Площадки и корты' },
+      { href: '/me/partner/venues', label: 'Площадки' },
       { href: '/me/partner/verification', label: 'Верификация партнёра' },
       { href: '/me/partner/booking-requests', label: 'Входящие заявки' },
     ],
   },
   {
-    title: 'Сценарий администратора',
+    title: 'Администрирование',
     adminOnly: true,
     items: [
       { href: '/admin/verification-requests', label: 'Заявки на верификацию' },
@@ -63,7 +57,7 @@ export function DemoShell({
           <p className="eyebrow">tennis_spot</p>
           <h1 className="brand-title">Демо-срез MVP</h1>
           <p className="brand-copy">
-            Рабочий сценарий для проверки профилей, площадок, верификации партнёра и заявок на бронь.
+            Рабочий MVP для игроков, партнёров и администраторов: профили, корты, бронирование, вызовы и жалобы.
           </p>
         </div>
 
@@ -113,7 +107,7 @@ export function DemoShell({
 
       <section className="content-panel">
         <header className="page-header">
-          <p className="eyebrow">Рабочий поток</p>
+          <p className="eyebrow">tennis_spot</p>
           <h2>{title}</h2>
           <p className="page-copy">{description}</p>
         </header>

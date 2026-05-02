@@ -133,7 +133,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
   return (
     <DemoShell
       title="Детали заявки на верификацию"
-      description="Проверьте статус, документы и профиль партнера, затем выберите одно из решений по заявке."
+      description="Проверьте статус, документы и профиль партнёра, затем выберите решение по заявке."
     >
       {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
       {isLoaded && !session ? (
@@ -170,7 +170,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
 
             <Card>
               <div className="card-header-row">
-                <h3>Состояние партнера</h3>
+                <h3>Состояние партнёра</h3>
                 <StatusBadge
                   tone={getPartnerVerificationStatusTone(details.partnerProfile.verificationStatus)}
                 >
@@ -191,7 +191,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
                   .join(', ')}
               </p>
               <p className="muted">
-                {details.partnerProfile.description ?? 'Описание клуба или организации не заполнено.'}
+                {details.partnerProfile.description ?? 'Информация для игроков пока не заполнена.'}
               </p>
             </Card>
           </div>
@@ -199,7 +199,7 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
           <Card>
             <h3>Решение администратора</h3>
             <label className="field">
-              <span>Комментарий для партнера</span>
+              <span>Комментарий для партнёра</span>
               <textarea
                 value={comment}
                 placeholder="Например: документы читаются хорошо, профиль можно подтверждать."

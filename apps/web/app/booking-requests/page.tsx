@@ -536,8 +536,8 @@ function BookingRequestsContent() {
     setRequestForm(initialRequestForm);
     setMessage(
       matchPrefill
-        ? 'Заявка на бронь создана и связана с вызовом.'
-        : 'Заявка на бронь отправлена партнёру.',
+        ? 'Заявка на бронь отправлена и связана с вызовом.'
+        : 'Заявка на бронь отправлена.',
     );
     setLoading(false);
     await Promise.all([loadBaseData(), runSearch()]);
@@ -663,27 +663,29 @@ function BookingRequestsContent() {
               </select>
             </label>
 
-            <label className="field">
-              <span>Район / округ</span>
-              <select
-                value={searchForm.districtId}
-                onChange={(event) => updateSearchForm('districtId', event.target.value)}
-                disabled={!searchForm.cityId || districtsLoading || searchLoading || loading}
-              >
-                <option value="">
-                  {!searchForm.cityId
-                    ? 'Сначала выберите город'
-                    : districtsLoading
-                      ? 'Загружаем районы...'
-                      : 'Любой район'}
-                </option>
-                {districts.map((district) => (
-                  <option key={district.id} value={district.id}>
-                    {district.name}
+            {!searchForm.cityId || districtsLoading || districts.length ? (
+              <label className="field">
+                <span>Район / округ</span>
+                <select
+                  value={searchForm.districtId}
+                  onChange={(event) => updateSearchForm('districtId', event.target.value)}
+                  disabled={!searchForm.cityId || districtsLoading || searchLoading || loading}
+                >
+                  <option value="">
+                    {!searchForm.cityId
+                      ? 'Сначала выберите город'
+                      : districtsLoading
+                        ? 'Загрузка...'
+                        : 'Любой район'}
                   </option>
-                ))}
-              </select>
-            </label>
+                  {districts.map((district) => (
+                    <option key={district.id} value={district.id}>
+                      {district.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
             <label className="field">
               <span>Дата</span>
@@ -882,8 +884,7 @@ function BookingRequestsContent() {
 
         {hasSearched && !searchLoading && !options.length ? (
           <Notice>
-            По выбранным условиям пока нет подходящих кортов. Измените дату, время или параметры
-            покрытия.
+            По заданным параметрам ничего не найдено. Попробуйте изменить дату или время.
           </Notice>
         ) : null}
 
@@ -941,11 +942,11 @@ function BookingRequestsContent() {
 
       <Card>
         <div className="card-header-row">
-          <h3>Мои заявки</h3>
+          <h3>Заявки на бронь</h3>
           <StatusBadge tone="neutral">{bookingRequests.length}</StatusBadge>
         </div>
         {!bookingRequests.length ? (
-          <p className="muted">Пока нет заявок. Сначала подберите вариант и отправьте первую заявку.</p>
+          <p className="muted">У вас пока нет заявок. Выберите корт и отправьте заявку на бронь.</p>
         ) : (
           <div className="list-stack">
             {bookingRequests.map((bookingRequest) => (

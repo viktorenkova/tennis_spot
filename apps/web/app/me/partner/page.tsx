@@ -96,7 +96,7 @@ export default function PartnerProfilePage() {
 
     if (!districtsResponse.success || !districtsResponse.data) {
       setDistricts([]);
-      setError(districtsResponse.error?.message ?? 'Не удалось загрузить список районов и округов.');
+      setError(districtsResponse.error?.message ?? 'Не удалось загрузить список районов.');
       setDistrictsLoading(false);
       return;
     }
@@ -203,7 +203,7 @@ export default function PartnerProfilePage() {
     }
 
     if (!form.partnerTypes.length) {
-      setError('Выберите хотя бы один тип партнера.');
+      setError('Выберите хотя бы один тип партнёра.');
       return;
     }
 
@@ -233,13 +233,13 @@ export default function PartnerProfilePage() {
     );
 
     if (!response.success || !response.data) {
-      setError(response.error?.message ?? 'Не удалось сохранить профиль партнера.');
+      setError(response.error?.message ?? 'Не удалось сохранить профиль партнёра.');
       setLoading(false);
       return;
     }
 
     setProfile(response.data);
-    setMessage(profile ? 'Изменения сохранены.' : 'Профиль партнера создан.');
+    setMessage('Профиль сохранён.');
     setLoading(false);
   };
 
@@ -251,7 +251,7 @@ export default function PartnerProfilePage() {
       {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
       {isLoaded && !session ? (
         <Notice kind="error">
-          Сначала войдите через страницу демо-входа, а затем заполните анкету партнера.
+          Сначала войдите через страницу демо-входа, а затем заполните анкету партнёра.
         </Notice>
       ) : null}
       {!profile && session ? (
@@ -327,29 +327,31 @@ export default function PartnerProfilePage() {
               </select>
             </label>
 
-            <label className="field">
-              <span>Район / округ</span>
-              <select
-                value={form.districtId}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, districtId: event.target.value }))
-                }
-                disabled={!session || !form.cityId || districtsLoading}
-              >
-                <option value="">
-                  {!form.cityId
-                    ? 'Сначала выберите город'
-                    : districtsLoading
-                      ? 'Загружаем районы и округа...'
-                      : 'Выберите район или округ'}
-                </option>
-                {districts.map((district) => (
-                  <option key={district.id} value={district.id}>
-                    {district.name}
+            {!form.cityId || districtsLoading || districts.length ? (
+              <label className="field">
+                <span>Район / округ</span>
+                <select
+                  value={form.districtId}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, districtId: event.target.value }))
+                  }
+                  disabled={!session || !form.cityId || districtsLoading}
+                >
+                  <option value="">
+                    {!form.cityId
+                      ? 'Сначала выберите город'
+                      : districtsLoading
+                        ? 'Загрузка...'
+                        : 'Выберите район или округ'}
                   </option>
-                ))}
-              </select>
-            </label>
+                  {districts.map((district) => (
+                    <option key={district.id} value={district.id}>
+                      {district.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
         </Card>
       </div>
@@ -429,10 +431,10 @@ export default function PartnerProfilePage() {
         <Card>
           <h3>О клубе или организации</h3>
           <label className="field">
-            <span>Краткое описание</span>
+            <span>Информация для игроков</span>
             <textarea
               value={form.description}
-              placeholder="Например: клуб с крытыми кортами, групповыми тренировками и любительскими турнирами."
+              placeholder="Опишите формат площадки, корты, тренировки и важные условия для игроков..."
               onChange={(event) =>
                 setForm((current) => ({ ...current, description: event.target.value }))
               }

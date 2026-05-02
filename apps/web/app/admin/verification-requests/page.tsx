@@ -70,7 +70,7 @@ export default function AdminVerificationRequestsPage() {
   return (
     <DemoShell
       title="Заявки на верификацию"
-      description="Откройте заявку, проверьте данные партнера и перейдите к решению по модерации."
+      description="Откройте заявку, проверьте данные партнёра и выберите решение."
     >
       {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
       {isLoaded && !session ? (
@@ -86,7 +86,7 @@ export default function AdminVerificationRequestsPage() {
           <h3>Как работать с очередью</h3>
           <ol className="ordered-list">
             <li>Выберите нужный статус или оставьте список без фильтра.</li>
-            <li>Откройте карточку партнера.</li>
+            <li>Откройте карточку партнёра.</li>
             <li>Проверьте документы и комментарии.</li>
             <li>Примите решение: подтвердить, отклонить или запросить уточнения.</li>
           </ol>

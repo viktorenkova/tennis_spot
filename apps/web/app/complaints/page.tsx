@@ -138,7 +138,7 @@ function ComplaintsContent() {
       return;
     }
 
-    setMessage('Жалоба отправлена администратору.');
+    setMessage('Жалоба отправлена.');
     setDescription('');
     setSelectedComplaintId(response.data.id);
     await loadComplaints();
@@ -146,8 +146,8 @@ function ComplaintsContent() {
 
   return (
     <DemoShell
-      title="Мои жалобы"
-      description="Короткий канал для фиксации проблем по booking, match или другому участнику."
+      title="Жалобы"
+      description="Короткий канал для фиксации проблем с бронью, вызовом или другим участником."
     >
       {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
       {isLoaded && !session ? <Notice kind="error">Войдите в демо-аккаунт, чтобы отправить жалобу.</Notice> : null}
@@ -162,7 +162,7 @@ function ComplaintsContent() {
           </div>
 
           {!hasContext ? (
-            <p className="muted">Откройте booking или match и нажмите «Пожаловаться».</p>
+            <p className="muted">Откройте бронь или вызов и нажмите «Пожаловаться».</p>
           ) : (
             <div className="form-grid">
               <label className="field">
@@ -177,12 +177,12 @@ function ComplaintsContent() {
               </label>
 
               <label className="field">
-                <span>Описание</span>
+                <span>Что произошло</span>
                 <textarea
                   value={description}
+                  placeholder="Коротко опишите ситуацию: что случилось, когда и с кем."
                   onChange={(event) => setDescription(event.target.value)}
                   rows={5}
-                  placeholder="Коротко опишите, что произошло"
                 />
               </label>
 
@@ -209,7 +209,7 @@ function ComplaintsContent() {
           </div>
 
           {!selectedComplaint ? (
-            <p className="muted">Пока нет жалоб.</p>
+            <p className="muted">У вас нет жалоб.</p>
           ) : (
             <div className="details-list">
               <p>
@@ -230,7 +230,7 @@ function ComplaintsContent() {
 
       <Card>
         <div className="card-header-row">
-          <h3>Мои жалобы</h3>
+          <h3>Жалобы</h3>
           <StatusBadge tone="neutral">{complaints.length}</StatusBadge>
         </div>
 

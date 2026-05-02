@@ -177,29 +177,31 @@ export default function PlayersPage() {
             </select>
           </label>
 
-          <label className="field">
-            <span>Район / округ</span>
-            <select
-              value={filters.districtId}
-              onChange={(event) =>
-                setFilters((current) => ({ ...current, districtId: event.target.value }))
-              }
-              disabled={!filters.cityId || districtsLoading || loading}
-            >
-              <option value="">
-                {!filters.cityId
-                  ? 'Сначала выберите город'
-                  : districtsLoading
-                    ? 'Загружаем районы...'
-                    : 'Любой район'}
-              </option>
-              {districts.map((district) => (
-                <option key={district.id} value={district.id}>
-                  {district.name}
+          {!filters.cityId || districtsLoading || districts.length ? (
+            <label className="field">
+              <span>Район / округ</span>
+              <select
+                value={filters.districtId}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, districtId: event.target.value }))
+                }
+                disabled={!filters.cityId || districtsLoading || loading}
+              >
+                <option value="">
+                  {!filters.cityId
+                    ? 'Сначала выберите город'
+                    : districtsLoading
+                      ? 'Загрузка...'
+                      : 'Любой район'}
                 </option>
-              ))}
-            </select>
-          </label>
+                {districts.map((district) => (
+                  <option key={district.id} value={district.id}>
+                    {district.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
 
           <label className="field">
             <span>Уровень NTRP</span>
@@ -231,7 +233,7 @@ export default function PlayersPage() {
 
         {!loading && !filteredPlayers.length ? (
           <Notice>
-            По выбранным фильтрам пока нет игроков. Попробуйте изменить город, район или уровень.
+            По выбранным фильтрам ничего не найдено. Попробуйте изменить город или уровень.
           </Notice>
         ) : null}
 
@@ -246,7 +248,7 @@ export default function PlayersPage() {
                       'Город не указан'}
                   </span>
                   <span>{formatNtrp(player.ntrpSelfRating)}</span>
-                  <span>{player.bio ?? 'Описание пока не заполнено'}</span>
+                  <span>{player.bio ?? 'Игрок пока не добавил информацию о себе'}</span>
                 </div>
                 <StatusBadge tone="success">Открыть</StatusBadge>
               </Link>
