@@ -4,8 +4,13 @@ import {
   ValidationError,
   ValidationPipe,
 } from '@nestjs/common';
+import type {
+  CorsOptions,
+  CorsOptionsCallback,
+} from '@nestjs/common/interfaces/external/cors-options.interface';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 
@@ -31,15 +36,63 @@ function formatValidationErrors(errors: ValidationError[]) {
   return fields;
 }
 
+function normalizeOrigin(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return value.replace(/\/+$/, '');
+  }
+}
+
+function getHeaderValues(value: string | string[] | undefined) {
+  if (!value) {
+    return [];
+  }
+
+  const values = Array.isArray(value) ? value : [value];
+
+  return values
+    .flatMap((currentValue) => currentValue.split(','))
+    .map((currentValue) => currentValue.trim())
+    .filter(Boolean);
+}
+
+function isSameHostOrigin(origin: string, request: Request) {
+  let originUrl: URL;
+
+  try {
+    originUrl = new URL(origin);
+  } catch {
+    return false;
+  }
+
+  if (originUrl.protocol !== 'http:' && originUrl.protocol !== 'https:') {
+    return false;
+  }
+
+  const requestHosts = new Set([
+    ...getHeaderValues(request.headers.host),
+    ...getHeaderValues(request.headers['x-forwarded-host']),
+  ]);
+
+  return requestHosts.has(originUrl.host);
+}
+
 export function configureApp(app: INestApplication) {
   const configService = app.get(ConfigService);
   const apiPrefix = configService.get<string>('app.prefix', 'api/v1');
   const allowedOrigins = Array.from(
     new Set([
-      configService.get<string>('app.frontendUrl', 'http://localhost:3000'),
+      normalizeOrigin(configService.get<string>('app.frontendUrl', 'http://localhost:3000')),
+      normalizeOrigin(configService.get<string>('app.url')),
+      normalizeOrigin(process.env.NEXT_PUBLIC_API_URL),
       'http://localhost:3000',
       'http://127.0.0.1:3000',
-    ]),
+    ].filter((origin): origin is string => Boolean(origin))),
   );
   const isAllowedDevOrigin = (origin: string) => {
     try {
@@ -58,28 +111,31 @@ export function configureApp(app: INestApplication) {
   };
 
   app.setGlobalPrefix(apiPrefix);
-  const corsOrigin = (
-    origin: string | undefined,
-    callback: (error: Error | null, allow?: boolean) => void,
-  ) => {
-    const normalizedOrigin = typeof origin === 'string' ? origin : undefined;
+  const corsOptionsForRequest = (request: Request, callback: CorsOptionsCallback) => {
+    const origin = typeof request.headers.origin === 'string' ? request.headers.origin : undefined;
+    const normalizedOrigin = normalizeOrigin(origin);
+    const options: CorsOptions = {
+      credentials: true,
+      origin: false,
+    };
 
     if (
       !normalizedOrigin ||
       allowedOrigins.includes(normalizedOrigin) ||
-      isAllowedDevOrigin(normalizedOrigin)
+      isAllowedDevOrigin(normalizedOrigin) ||
+      isSameHostOrigin(normalizedOrigin, request)
     ) {
-      callback(null, true);
+      callback(null, {
+        ...options,
+        origin: true,
+      });
       return;
     }
 
-    callback(new Error(`Origin ${normalizedOrigin} is not allowed by CORS.`), false);
+    callback(new Error(`Origin ${normalizedOrigin} is not allowed by CORS.`), options);
   };
 
-  app.enableCors({
-    origin: corsOrigin,
-    credentials: true,
-  });
+  app.enableCors(corsOptionsForRequest);
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalPipes(
