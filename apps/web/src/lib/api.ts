@@ -21,10 +21,24 @@ function resolveApiBaseUrl() {
   }
 
   if (typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:4000/api/v1`;
+    const { hostname, origin, protocol } = window.location;
+
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `${protocol}//${hostname}:4000/api/v1`;
+    }
+
+    return `${origin}/api/v1`;
   }
 
   return 'http://localhost:4000/api/v1';
+}
+
+function resolveApiUrl(baseUrl: string, path: string) {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  return `${baseUrl}/${path.replace(/^\/+/, '')}`;
 }
 
 function getFriendlyNetworkMessage(error: unknown) {
@@ -79,7 +93,7 @@ export async function apiRequest<T>(
   }
 
   try {
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(resolveApiUrl(baseUrl, path), {
       ...options,
       headers,
       cache: 'no-store',
