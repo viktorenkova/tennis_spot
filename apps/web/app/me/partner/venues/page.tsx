@@ -618,7 +618,7 @@ export default function PartnerVenuesPage() {
       {!isLoaded ? <Notice>Загружаем кабинет партнёра...</Notice> : null}
       {isLoaded && !session ? (
         <Notice kind="error">
-          Сначала войдите через страницу демо-входа, а затем откройте управление площадками.
+          Сначала войдите или зарегистрируйтесь по телефону, а затем откройте управление площадками.
         </Notice>
       ) : null}
       {!partnerProfile && session ? (

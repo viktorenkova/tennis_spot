@@ -481,7 +481,7 @@ function BookingRequestsContent() {
 
   const saveBookingRequest = async () => {
     if (!session) {
-      setError('Сначала войдите через демо-вход.');
+      setError('Сначала войдите или зарегистрируйтесь по телефону.');
       return;
     }
 
@@ -589,7 +589,7 @@ function BookingRequestsContent() {
       {!isLoaded ? <Notice>Загружаем кабинет игрока...</Notice> : null}
       {isLoaded && !session ? (
         <Notice kind="error">
-          Сначала войдите через страницу демо-входа, а затем вернитесь к заявкам на бронь.
+          Сначала войдите или зарегистрируйтесь по телефону, а затем вернитесь к заявкам на бронь.
         </Notice>
       ) : null}
       {session && !playerProfile ? (

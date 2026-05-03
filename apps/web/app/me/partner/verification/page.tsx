@@ -186,7 +186,7 @@ export default function PartnerVerificationPage() {
       {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
       {isLoaded && !session ? (
         <Notice kind="error">
-          Сначала войдите через страницу демо-входа, а затем откройте верификацию партнёра.
+          Сначала войдите или зарегистрируйтесь по телефону, а затем откройте верификацию партнёра.
         </Notice>
       ) : null}
       {!partnerProfile && session ? (

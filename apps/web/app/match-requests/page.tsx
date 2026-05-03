@@ -273,7 +273,7 @@ export default function MatchRequestsPage() {
     >
       {!isLoaded ? <Notice>Проверяем текущую демо-сессию...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Сначала войдите через страницу демо-входа.</Notice>
+        <Notice kind="error">Сначала войдите или зарегистрируйтесь по телефону.</Notice>
       ) : null}
       {loading ? <Notice>Загружаем вызовы...</Notice> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}

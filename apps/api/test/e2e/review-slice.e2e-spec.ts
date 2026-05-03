@@ -16,6 +16,7 @@ describe('P1 review and booking slices (e2e)', () => {
     process.env.JWT_ACCESS_TTL = '15m';
     process.env.JWT_REFRESH_TTL = '30d';
     process.env.AUTH_ENABLE_DEMO_LOGIN = 'true';
+    process.env.AUTH_DEV_RETURN_CODE = 'true';
   });
 
   beforeEach(async () => {
@@ -44,6 +45,29 @@ describe('P1 review and booking slices (e2e)', () => {
       .expect(201);
 
     return response.body.data.accessToken as string;
+  }
+
+  async function phoneLogin(phone: string) {
+    const requestCodeResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/phone/request-code')
+      .send({ phone })
+      .expect(201);
+
+    expect(requestCodeResponse.body.data.challengeId).toBeDefined();
+    expect(requestCodeResponse.body.data.code).toBeDefined();
+
+    const verifyCodeResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/phone/verify-code')
+      .send({
+        phone,
+        challengeId: requestCodeResponse.body.data.challengeId,
+        code: requestCodeResponse.body.data.code,
+      })
+      .expect(201);
+
+    expect(verifyCodeResponse.body.data.accessToken).toBeDefined();
+
+    return verifyCodeResponse.body.data.accessToken as string;
   }
 
   async function getDemoLocation() {
@@ -80,6 +104,16 @@ describe('P1 review and booking slices (e2e)', () => {
         districtId,
         partnerTypes: ['club'],
       });
+  }
+
+  async function selectOnboardingRole(accessToken: string, mode: 'player' | 'partner') {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/user/onboarding/role')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ mode })
+      .expect(201);
+
+    return response.body.data.roles.map((item: any) => item.role.key).sort() as string[];
   }
 
   function addVerificationDocument(
@@ -348,6 +382,122 @@ describe('P1 review and booking slices (e2e)', () => {
         'booking_created',
         'match_request_created',
         'match_booking_created',
+      ]),
+    );
+  });
+
+  it('lets a public phone user choose the player scenario', async () => {
+    const token = await phoneLogin('+79991234567');
+    const roles = await selectOnboardingRole(token, 'player');
+
+    expect(roles).toEqual(['player']);
+  });
+
+  it('lets a public phone user choose the partner scenario without auto-verification', async () => {
+    const token = await phoneLogin('+79991234568');
+    const roles = await selectOnboardingRole(token, 'partner');
+    const location = await getDemoLocation();
+
+    expect(roles).toEqual(['partner', 'player']);
+
+    const profileResponse = await createPartnerProfile(
+      token,
+      location.cityId,
+      location.districtId,
+    ).expect(201);
+
+    expect(profileResponse.body.data.verificationStatus).toBe('draft');
+  });
+
+  it('does not allow public onboarding to grant admin roles', async () => {
+    const token = await phoneLogin('+79991234569');
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/user/onboarding/role')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ mode: 'admin' })
+      .expect(400);
+
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+
+    const meResponse = await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const roles = meResponse.body.data.roles.map((item: any) => item.role.key);
+    expect(roles).not.toContain('admin');
+    expect(roles).not.toContain('superadmin');
+  });
+
+  it('keeps unverified partner venues out of public catalog and booking discovery', async () => {
+    const token = await phoneLogin('+79991234570');
+    await selectOnboardingRole(token, 'partner');
+
+    const location = await getDemoLocation();
+    const profileResponse = await createPartnerProfile(
+      token,
+      location.cityId,
+      location.districtId,
+    ).expect(201);
+
+    expect(profileResponse.body.data.verificationStatus).toBe('draft');
+
+    const venueResponse = await request(app.getHttpServer())
+      .post('/api/v1/partner/venues')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Unverified Public Beta Venue',
+        cityId: location.cityId,
+        districtId: location.districtId,
+        line1: 'Beta lane 1',
+        isActive: true,
+      })
+      .expect(201);
+
+    const courtResponse = await request(app.getHttpServer())
+      .post(`/api/v1/partner/venues/${venueResponse.body.data.id}/courts`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Court Beta',
+        surfaceType: 'hard',
+        isIndoor: true,
+        hasLighting: true,
+        isActive: true,
+      })
+      .expect(201);
+
+    await createScheduleTemplate(token, courtResponse.body.data.id).expect(201);
+
+    const publicVenuesResponse = await request(app.getHttpServer())
+      .get('/api/v1/venues')
+      .expect(200);
+
+    expect(publicVenuesResponse.body.data).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: venueResponse.body.data.id,
+        }),
+      ]),
+    );
+
+    const bookingOptionsResponse = await request(app.getHttpServer())
+      .get('/api/v1/booking-requests/options')
+      .query({
+        cityId: location.cityId,
+        bookingDate: '2026-04-20',
+        timeFrom: '18:00',
+        timeTo: '19:30',
+      })
+      .expect(200);
+
+    expect(bookingOptionsResponse.body.data).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          venue: expect.objectContaining({
+            id: venueResponse.body.data.id,
+          }),
+        }),
       ]),
     );
   });

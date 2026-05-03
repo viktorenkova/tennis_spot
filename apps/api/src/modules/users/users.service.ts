@@ -1,8 +1,10 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { UpdateUserAccountDto } from './dto/update-user-account.dto';
 import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
+
+type PublicOnboardingRole = 'player' | 'partner';
 
 @Injectable()
 export class UsersService {
@@ -46,6 +48,32 @@ export class UsersService {
 
         throw error;
       });
+  }
+
+  async selectOnboardingRole(userId: string, mode: PublicOnboardingRole) {
+    const role = await this.prisma.role.findUnique({
+      where: { key: mode },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Роль ещё не создана через seed.');
+    }
+
+    await this.prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId,
+          roleId: role.id,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        roleId: role.id,
+      },
+    });
+
+    return this.getAccount(userId);
   }
 
   async getSettings(userId: string) {

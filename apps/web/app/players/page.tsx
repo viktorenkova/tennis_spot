@@ -149,7 +149,7 @@ export default function PlayersPage() {
     >
       {!isLoaded ? <Notice>Проверяем текущую демо-сессию...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Сначала войдите через страницу демо-входа.</Notice>
+        <Notice kind="error">Сначала войдите или зарегистрируйтесь по телефону.</Notice>
       ) : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
 

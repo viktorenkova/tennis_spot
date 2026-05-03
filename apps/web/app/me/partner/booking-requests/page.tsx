@@ -169,7 +169,7 @@ export default function PartnerBookingRequestsPage() {
       {!isLoaded ? <Notice>Загружаем кабинет партнёра...</Notice> : null}
       {isLoaded && !session ? (
         <Notice kind="error">
-          Сначала войдите через страницу демо-входа, а затем вернитесь к входящим заявкам.
+          Сначала войдите или зарегистрируйтесь по телефону, а затем вернитесь к входящим заявкам.
         </Notice>
       ) : null}
       {session && !partnerProfile ? (

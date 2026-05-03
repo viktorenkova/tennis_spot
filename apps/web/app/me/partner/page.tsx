@@ -251,7 +251,7 @@ export default function PartnerProfilePage() {
       {!isLoaded ? <Notice>Загружаем данные аккаунта...</Notice> : null}
       {isLoaded && !session ? (
         <Notice kind="error">
-          Сначала войдите через страницу демо-входа, а затем заполните анкету партнёра.
+          Сначала войдите или зарегистрируйтесь по телефону, а затем заполните анкету партнёра.
         </Notice>
       ) : null}
       {!profile && session ? (

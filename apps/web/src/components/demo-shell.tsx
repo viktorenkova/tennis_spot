@@ -5,7 +5,13 @@ import { ReactNode } from 'react';
 import { formatRole } from '../lib/labels';
 import { hasRole, useDemoSession } from '../lib/session';
 
-const navigation = [
+const publicNavigation = [
+  { href: '/', label: 'Главная' },
+  { href: '/auth/register', label: 'Зарегистрироваться' },
+  { href: '/auth/login', label: 'Войти' },
+];
+
+const productNavigation = [
   {
     title: 'Основное',
     items: [
@@ -48,32 +54,55 @@ export function DemoShell({
 }) {
   const { session, clearSession, isLoaded } = useDemoSession();
   const isAdmin = hasRole(session, 'admin') || hasRole(session, 'superadmin');
-  const sections = navigation.filter((section) => !section.adminOnly || isAdmin);
+  const sections = productNavigation.filter((section) => !section.adminOnly || isAdmin);
 
   return (
     <main className="app-shell">
       <aside className="side-panel">
         <div className="brand-block">
           <p className="eyebrow">tennis_spot</p>
-          <h1 className="brand-title">Демо-срез MVP</h1>
+          <h1 className="brand-title">Tennis Spot</h1>
           <p className="brand-copy">
-            Рабочий MVP для игроков, партнёров и администраторов: профили, корты, бронирование, вызовы и жалобы.
+            Сервис для игроков, клубов, школ и организаторов: профили, корты,
+            заявки на бронирование, поиск партнёров и проверка площадок.
           </p>
         </div>
 
         <nav className="side-nav">
-          {sections.map((section) => (
-            <section key={section.title} className="nav-section">
-              <p className="nav-section-title">{section.title}</p>
+          {!session ? (
+            <section className="nav-section">
+              <p className="nav-section-title">Аккаунт</p>
               <div className="nav-section-links">
-                {section.items.map((link) => (
+                {publicNavigation.map((link) => (
                   <Link key={link.href} href={link.href} className="nav-link">
                     {link.label}
                   </Link>
                 ))}
               </div>
             </section>
-          ))}
+          ) : (
+            sections.map((section) => (
+              <section key={section.title} className="nav-section">
+                <p className="nav-section-title">{section.title}</p>
+                <div className="nav-section-links">
+                  {section.items.map((link) => (
+                    <Link key={link.href} href={link.href} className="nav-link">
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))
+          )}
+
+          <section className="nav-section">
+            <p className="nav-section-title">Debug</p>
+            <div className="nav-section-links">
+              <Link href="/demo/auth" className="nav-link nav-link-subtle">
+                Демо-режим для проверки сценариев
+              </Link>
+            </div>
+          </section>
         </nav>
 
         <section className="session-card">
@@ -84,7 +113,7 @@ export function DemoShell({
           {!isLoaded ? <p className="muted">Проверяем текущий вход...</p> : null}
           {isLoaded && !session ? (
             <p className="muted">
-              Аккаунт не выбран. Сначала откройте страницу демо-входа и авторизуйтесь.
+              Вы не вошли. Зарегистрируйтесь или войдите по телефону, чтобы продолжить.
             </p>
           ) : null}
           {session?.user ? (
@@ -98,7 +127,7 @@ export function DemoShell({
                   'Не указаны'}
               </p>
               <button type="button" className="ghost-button" onClick={clearSession}>
-                Выйти из аккаунта
+                Выйти
               </button>
             </>
           ) : null}
