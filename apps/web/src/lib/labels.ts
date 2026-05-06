@@ -141,6 +141,45 @@ export function formatMatchRequestFormat(format: string) {
   return matchRequestFormats[format] ?? format;
 }
 
+export function formatNotificationType(type: string) {
+  switch (type) {
+    case 'verification_submitted':
+      return 'Заявка на верификацию';
+    case 'verification_approved':
+      return 'Верификация одобрена';
+    case 'verification_rejected':
+      return 'Верификация отклонена';
+    case 'verification_needs_correction':
+      return 'Нужны уточнения по верификации';
+    case 'booking_created':
+      return 'Новая заявка на бронирование';
+    case 'booking_confirmed':
+      return 'Заявка на бронирование подтверждена';
+    case 'booking_rejected':
+      return 'Заявка на бронирование отклонена';
+    case 'booking_cancelled':
+      return 'Заявка на бронирование отменена';
+    case 'booking_completed':
+      return 'Бронирование завершено';
+    case 'match_request_created':
+      return 'Вызов на игру';
+    case 'match_request_accepted':
+      return 'Вызов принят';
+    case 'match_request_declined':
+      return 'Вызов отклонён';
+    case 'match_request_cancelled':
+      return 'Вызов отменён';
+    case 'match_booking_created':
+      return 'Бронь для игры';
+    case 'complaint_created':
+      return 'Новая жалоба';
+    case 'complaint_status_updated':
+      return 'Статус жалобы обновлён';
+    default:
+      return type;
+  }
+}
+
 export function formatComplaintStatus(status: string) {
   return complaintStatuses[status]?.label ?? status;
 }

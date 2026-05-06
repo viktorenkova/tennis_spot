@@ -256,12 +256,16 @@ export function AdminVerificationRequestDetailsPage({ requestId }: { requestId: 
               {!details.auditLogs.length ? (
                 <p className="muted">По заявке пока нет записей в журнале.</p>
               ) : (
-                <ul className="bullet-list">
+                <ul className="audit-list">
                   {details.auditLogs.map((log) => (
-                    <li key={log.id}>
-                      {formatAuditAction(log.action)} · {log.actorUser?.phone ?? 'Система'} ·{' '}
-                      {formatDateTime(log.createdAt)}
-                      {log.comment ? ` - ${log.comment}` : ''}
+                    <li key={log.id} className="audit-item">
+                      <div className="audit-item-header">
+                        <strong>{formatAuditAction(log.action)}</strong>
+                        <span className="audit-meta">
+                          {log.actorUser?.phone ?? 'Система'} · {formatDateTime(log.createdAt)}
+                        </span>
+                      </div>
+                      {log.comment ? <p className="audit-comment">{log.comment}</p> : null}
                     </li>
                   ))}
                 </ul>

@@ -211,14 +211,16 @@ function ComplaintsContent() {
           {!selectedComplaint ? (
             <p className="muted">У вас нет жалоб.</p>
           ) : (
-            <div className="details-list">
+            <div className="info-list compact-list">
               <p>
                 <strong>Тип:</strong> {formatComplaintType(selectedComplaint.type)}
               </p>
               <p>
                 <strong>Контекст:</strong> {getContextLabel(selectedComplaint)}
               </p>
-              <p>{selectedComplaint.description}</p>
+              <p>
+                <strong>Описание:</strong> {selectedComplaint.description}
+              </p>
               <p>
                 <strong>Ответ администратора:</strong>{' '}
                 {selectedComplaint.resolutionComment || 'Пока нет'}
@@ -245,10 +247,10 @@ function ComplaintsContent() {
                 className="list-row list-row-detailed"
                 onClick={() => setSelectedComplaintId(complaint.id)}
               >
-                <div>
+                <div className="complaint-summary">
                   <strong>{formatComplaintType(complaint.type)}</strong>
-                  <span>{complaint.description.slice(0, 140)}</span>
-                  <span>{formatDateTime(complaint.createdAt)}</span>
+                  <p>{complaint.description.slice(0, 140)}</p>
+                  <p className="muted">{formatDateTime(complaint.createdAt)}</p>
                 </div>
                 <StatusBadge tone={getComplaintStatusTone(complaint.status)}>
                   {formatComplaintStatus(complaint.status)}

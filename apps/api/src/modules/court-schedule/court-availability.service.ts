@@ -73,12 +73,7 @@ export class CourtAvailabilityService {
   ) {
     const availability = await this.buildAvailability(courtId, date, options);
 
-    const matchingInterval = availability.intervals.find(
-      (interval) =>
-        interval.timeFrom === timeFrom &&
-        interval.timeTo === timeTo &&
-        interval.isAvailable,
-    );
+    const matchingInterval = this.findMatchingInterval(availability.intervals, timeFrom, timeTo);
 
     if (matchingInterval) {
       return availability;
@@ -94,6 +89,78 @@ export class CourtAvailabilityService {
         timeFrom: ['Выберите доступный интервал из расписания корта.'],
       },
     });
+  }
+
+  findMatchingInterval(
+    intervals: Array<{
+      timeFrom: string;
+      timeTo: string;
+      slotDurationMinutes: number;
+      isAvailable: boolean;
+      price: Prisma.Decimal | number | null;
+    }>,
+    timeFrom: string,
+    timeTo: string,
+  ) {
+    const requestedStart = this.parseTimeToMinutes(timeFrom);
+    const requestedEnd = this.parseTimeToMinutes(timeTo);
+
+    if (requestedEnd <= requestedStart) {
+      return null;
+    }
+
+    const sortedIntervals = [...intervals].sort((left, right) =>
+      left.timeFrom.localeCompare(right.timeFrom),
+    );
+
+    let cursor = requestedStart;
+    let totalPrice: Prisma.Decimal | null = null;
+    let hasMissingPrice = false;
+    let slotDurationMinutes: number | null = null;
+
+    while (cursor < requestedEnd) {
+      const currentTime = this.formatMinutes(cursor);
+      const nextInterval = sortedIntervals.find(
+        (interval) => interval.timeFrom === currentTime && interval.isAvailable,
+      );
+
+      if (!nextInterval) {
+        return null;
+      }
+
+      const intervalStart = this.parseTimeToMinutes(nextInterval.timeFrom);
+      const intervalEnd = this.parseTimeToMinutes(nextInterval.timeTo);
+
+      if (intervalStart !== cursor || intervalEnd > requestedEnd) {
+        return null;
+      }
+
+      slotDurationMinutes = slotDurationMinutes
+        ? Math.min(slotDurationMinutes, nextInterval.slotDurationMinutes)
+        : nextInterval.slotDurationMinutes;
+
+      if (nextInterval.price === null) {
+        hasMissingPrice = true;
+      } else if (!hasMissingPrice) {
+        const nextPrice = new Prisma.Decimal(nextInterval.price);
+        totalPrice = totalPrice ? totalPrice.add(nextPrice) : nextPrice;
+      }
+
+      cursor = intervalEnd;
+    }
+
+    if (cursor !== requestedEnd) {
+      return null;
+    }
+
+    return {
+      timeFrom,
+      timeTo,
+      slotDurationMinutes: slotDurationMinutes ?? requestedEnd - requestedStart,
+      price: hasMissingPrice ? null : totalPrice,
+      isAvailable: true,
+      reason: null,
+    };
   }
 
   async buildAvailability(

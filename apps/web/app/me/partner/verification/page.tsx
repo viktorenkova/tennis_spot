@@ -276,7 +276,7 @@ export default function PartnerVerificationPage() {
                 disabled={!canAddDocument}
               />
               <label className="secondary-button file-upload-button" htmlFor="verification-document-file">
-                Загрузить документ
+                Выбрать файл
               </label>
             </div>
 
@@ -289,7 +289,7 @@ export default function PartnerVerificationPage() {
             onClick={addDocument}
             disabled={!canAddDocument}
           >
-            {loading ? 'Загрузка...' : 'Загрузить документ'}
+            {loading ? 'Загрузка...' : 'Прикрепить документ'}
           </button>
         </Card>
 

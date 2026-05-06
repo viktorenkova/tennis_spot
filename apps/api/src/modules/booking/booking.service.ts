@@ -159,11 +159,10 @@ export class BookingService {
             query.bookingDate!,
           );
 
-          const matchingInterval = availability.intervals.find(
-            (interval) =>
-              interval.timeFrom === query.timeFrom &&
-              interval.timeTo === query.timeTo &&
-              interval.isAvailable,
+          const matchingInterval = this.courtAvailabilityService.findMatchingInterval(
+            availability.intervals,
+            query.timeFrom!,
+            query.timeTo!,
           );
 
           if (!matchingInterval) {

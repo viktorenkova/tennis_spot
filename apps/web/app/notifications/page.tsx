@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { DemoShell } from '../../src/components/demo-shell';
 import { Card, Notice, StatusBadge } from '../../src/components/ui';
 import { apiRequest } from '../../src/lib/api';
-import { formatDateTime } from '../../src/lib/labels';
+import { formatDateTime, formatNotificationType } from '../../src/lib/labels';
 import { useDemoSession } from '../../src/lib/session';
 
 type NotificationItem = {
@@ -223,13 +223,11 @@ export default function NotificationsPage() {
                   <div>
                     <div className="row-title">
                       <strong>{notification.title}</strong>
-                      <StatusBadge tone={notification.isRead ? 'neutral' : 'warning'}>
-                        {notification.isRead ? 'Прочитано' : 'Новое'}
-                      </StatusBadge>
                     </div>
                     <p>{notification.body}</p>
                     <p className="muted">
-                      Создано: {formatDateTime(notification.createdAt)} · Тип: {notification.type}
+                      Создано: {formatDateTime(notification.createdAt)} · Событие:{' '}
+                      {formatNotificationType(notification.type)}
                     </p>
                     {relatedHref ? (
                       <Link href={relatedHref} className="inline-link">
@@ -237,7 +235,10 @@ export default function NotificationsPage() {
                       </Link>
                     ) : null}
                   </div>
-                  <div className="row-actions">
+                  <div className="notification-actions">
+                    <StatusBadge tone={notification.isRead ? 'neutral' : 'warning'}>
+                      {notification.isRead ? 'Прочитано' : 'Новое'}
+                    </StatusBadge>
                     <button
                       type="button"
                       className="secondary-button"
