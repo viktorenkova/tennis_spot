@@ -21,7 +21,7 @@ export function Notice({
   title,
   children,
 }: {
-  kind?: 'neutral' | 'success' | 'error';
+  kind?: 'neutral' | 'success' | 'error' | 'warning';
   title?: string;
   children: ReactNode;
 }) {

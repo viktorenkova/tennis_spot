@@ -111,7 +111,8 @@ export class BookingService {
     }
 
     this.parseBookingDate(query.bookingDate);
-    this.getDurationMinutes(query.timeFrom, query.timeTo);
+    const requestedDurationMinutes = this.getDurationMinutes(query.timeFrom, query.timeTo);
+    this.courtAvailabilityService.ensureBookingDurationWithinLimit(requestedDurationMinutes);
     const playersCount = query.playersCount ?? 2;
 
     const venues = await this.prisma.venue.findMany({
@@ -206,10 +207,11 @@ export class BookingService {
 
   async createBookingRequest(userId: string, dto: CreateBookingRequestDto) {
     const playerProfile = await this.getPlayerProfileOrThrow(userId);
-    const venue = await this.getBookableVenueOrThrow(dto.venueId);
-    const court = await this.getBookableCourtOrThrow(dto.venueId, dto.courtId);
     const bookingDate = this.parseBookingDate(dto.bookingDate);
     const durationMinutes = this.getDurationMinutes(dto.timeFrom, dto.timeTo);
+    this.courtAvailabilityService.ensureBookingDurationWithinLimit(durationMinutes);
+    const venue = await this.getBookableVenueOrThrow(dto.venueId);
+    const court = await this.getBookableCourtOrThrow(dto.venueId, dto.courtId);
     await this.courtAvailabilityService.ensureCourtBookableInterval(
       court.id,
       dto.bookingDate,
@@ -345,14 +347,15 @@ export class BookingService {
     }
 
     const playerProfile = await this.getPlayerProfileOrThrow(userId);
-    const venue = await this.getBookableVenueOrThrow(dto.venueId);
-    const court = await this.getBookableCourtOrThrow(dto.venueId, dto.courtId);
     const bookingDateText = this.formatDateForAvailability(matchRequest.proposedDate);
     const bookingDate = this.parseBookingDate(bookingDateText);
     const durationMinutes = this.getDurationMinutes(
       matchRequest.proposedTimeFrom,
       matchRequest.proposedTimeTo,
     );
+    this.courtAvailabilityService.ensureBookingDurationWithinLimit(durationMinutes);
+    const venue = await this.getBookableVenueOrThrow(dto.venueId);
+    const court = await this.getBookableCourtOrThrow(dto.venueId, dto.courtId);
     const playersCount = this.getPlayersCountForMatchFormat(matchRequest.format);
 
     await this.courtAvailabilityService.ensureCourtBookableInterval(
@@ -549,6 +552,7 @@ export class BookingService {
 
   async confirmByPartner(userId: string, bookingRequestId: string, commentFromPartner?: string) {
     const bookingRequest = await this.getPartnerOwnedBookingRequestOrThrow(userId, bookingRequestId);
+    this.courtAvailabilityService.ensureBookingDurationWithinLimit(bookingRequest.durationMinutes);
     await this.courtAvailabilityService.ensureCourtBookableInterval(
       bookingRequest.courtId,
       this.formatDateForAvailability(bookingRequest.bookingDate),

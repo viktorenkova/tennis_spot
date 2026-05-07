@@ -1,0 +1,1 @@
+export const MAX_BOOKING_DURATION_MINUTES = 4 * 60;

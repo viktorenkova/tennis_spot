@@ -1,6 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { BookingRequestStatus, Prisma } from '@prisma/client';
 import { AppError } from '../../common/errors/app-error';
+import { MAX_BOOKING_DURATION_MINUTES } from '../../common/booking/booking-rules';
 import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
@@ -71,6 +72,9 @@ export class CourtAvailabilityService {
       ignoreBookingRequestId?: string;
     },
   ) {
+    const requestedDurationMinutes = this.getDurationMinutes(timeFrom, timeTo);
+    this.ensureBookingDurationWithinLimit(requestedDurationMinutes);
+
     const availability = await this.buildAvailability(courtId, date, options);
 
     const matchingInterval = this.findMatchingInterval(availability.intervals, timeFrom, timeTo);
@@ -87,6 +91,21 @@ export class CourtAvailabilityService {
           : 'Выбранный интервал недоступен для бронирования.',
       fields: {
         timeFrom: ['Выберите доступный интервал из расписания корта.'],
+      },
+    });
+  }
+
+  ensureBookingDurationWithinLimit(durationMinutes: number) {
+    if (durationMinutes <= MAX_BOOKING_DURATION_MINUTES) {
+      return;
+    }
+
+    throw new AppError(HttpStatus.BAD_REQUEST, {
+      code: ERROR_CODES.bookingRequestDurationLimitExceeded,
+      message:
+        'Итоговая стоимость рассчитывается по слотам. Для бронирований свыше 4 часов возможна отдельная договорённость с партнёром.',
+      fields: {
+        timeTo: ['Стандартное бронирование доступно только до 4 часов подряд.'],
       },
     });
   }
@@ -456,6 +475,23 @@ export class CourtAvailabilityService {
     }
 
     return Math.min(...templates.map((template) => template.slotDurationMinutes));
+  }
+
+  private getDurationMinutes(timeFrom: string, timeTo: string) {
+    const start = this.parseTimeToMinutes(timeFrom);
+    const end = this.parseTimeToMinutes(timeTo);
+
+    if (end <= start) {
+      throw new AppError(HttpStatus.BAD_REQUEST, {
+        code: ERROR_CODES.validation,
+        message: 'Проверьте время бронирования.',
+        fields: {
+          timeTo: ['Время окончания должно быть позже времени начала.'],
+        },
+      });
+    }
+
+    return end - start;
   }
 
   private normalizeDate(value: string) {

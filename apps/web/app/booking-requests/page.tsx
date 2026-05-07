@@ -167,6 +167,10 @@ const initialRequestForm: RequestForm = {
   commentFromPlayer: '',
 };
 
+const MAX_BOOKING_DURATION_MINUTES = 4 * 60;
+const STANDARD_BOOKING_RULE_TEXT =
+  'Итоговая стоимость рассчитывается по слотам. Для бронирований свыше 4 часов возможна отдельная договорённость с партнёром.';
+
 const surfaceOptions = [
   { value: '', label: 'Любое покрытие' },
   { value: 'hard', label: 'Хард' },
@@ -208,6 +212,13 @@ function canCancelBooking(status: string) {
 function isValidPlayersCount(value: string) {
   const playersCount = Number(value || 0);
   return Number.isInteger(playersCount) && playersCount >= 1 && playersCount <= 8;
+}
+
+function getDurationMinutes(timeFrom: string, timeTo: string) {
+  const [startHours, startMinutes] = timeFrom.split(':').map(Number);
+  const [endHours, endMinutes] = timeTo.split(':').map(Number);
+
+  return endHours * 60 + endMinutes - (startHours * 60 + startMinutes);
 }
 
 function BookingRequestsContent() {
@@ -397,8 +408,16 @@ function BookingRequestsContent() {
       return;
     }
 
+    const requestedDurationMinutes = getDurationMinutes(searchForm.timeFrom, searchForm.timeTo);
+
     if (searchForm.timeTo <= searchForm.timeFrom) {
       setError('Время окончания должно быть позже времени начала.');
+      setHasSearched(false);
+      return;
+    }
+
+    if (requestedDurationMinutes > MAX_BOOKING_DURATION_MINUTES) {
+      setError(STANDARD_BOOKING_RULE_TEXT);
       setHasSearched(false);
       return;
     }
@@ -574,12 +593,19 @@ function BookingRequestsContent() {
     router.push(`/complaints?relatedBookingRequestId=${bookingRequestId}`);
   }
 
+  const searchDurationMinutes =
+    searchForm.timeFrom && searchForm.timeTo
+      ? getDurationMinutes(searchForm.timeFrom, searchForm.timeTo)
+      : 0;
   const searchReady = Boolean(
     searchForm.bookingDate &&
       searchForm.timeFrom &&
       searchForm.timeTo &&
-      isValidPlayersCount(searchForm.playersCount),
+      isValidPlayersCount(searchForm.playersCount) &&
+      searchDurationMinutes > 0 &&
+      searchDurationMinutes <= MAX_BOOKING_DURATION_MINUTES,
   );
+  const isOverStandardDuration = searchDurationMinutes > MAX_BOOKING_DURATION_MINUTES;
 
   return (
     <DemoShell
@@ -697,9 +723,9 @@ function BookingRequestsContent() {
               />
             </label>
 
-            <div className="split-grid">
-              <label className="field">
-                <span>С</span>
+          <div className="split-grid">
+            <label className="field">
+              <span>С</span>
                 <input
                   type="time"
                   value={searchForm.timeFrom}
@@ -718,6 +744,12 @@ function BookingRequestsContent() {
                 />
               </label>
             </div>
+
+            {searchForm.bookingDate && searchForm.timeFrom && searchForm.timeTo && isOverStandardDuration ? (
+              <Notice kind="warning" title="Ограничение стандартного бронирования">
+                {STANDARD_BOOKING_RULE_TEXT}
+              </Notice>
+            ) : null}
 
             <label className="field">
               <span>Покрытие</span>
@@ -766,8 +798,9 @@ function BookingRequestsContent() {
             <div>
               <h3>Что делает система</h3>
               <p className="muted">
-                В подбор попадают только те корты, которые доступны по расписанию, не заблокированы
-                исключениями и не конфликтуют с уже активными заявками.
+                В подбор попадают только непрерывные интервалы по сетке расписания, которые доступны
+                по расписанию, не заблокированы исключениями и не конфликтуют с уже активными
+                заявками.
               </p>
             </div>
             <button

@@ -1,6 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { MatchRequest, MatchRequestStatus, Prisma } from '@prisma/client';
 import { AppError } from '../../common/errors/app-error';
+import { MAX_BOOKING_DURATION_MINUTES } from '../../common/booking/booking-rules';
 import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -385,6 +386,17 @@ export class MatchRequestsService {
       throw new AppError(HttpStatus.BAD_REQUEST, {
         code: ERROR_CODES.matchRequestInvalidSchedule,
         message: 'Время окончания должно быть позже времени начала.',
+      });
+    }
+
+    if (end - start > MAX_BOOKING_DURATION_MINUTES) {
+      throw new AppError(HttpStatus.BAD_REQUEST, {
+        code: ERROR_CODES.bookingRequestDurationLimitExceeded,
+        message:
+          'Итоговая стоимость рассчитывается по слотам. Для бронирований свыше 4 часов возможна отдельная договорённость с партнёром.',
+        fields: {
+          proposedTimeTo: ['Стандартное бронирование доступно только до 4 часов подряд.'],
+        },
       });
     }
   }

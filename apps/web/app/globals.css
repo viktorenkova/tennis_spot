@@ -323,6 +323,10 @@ a:focus-visible {
   background: var(--success-soft);
 }
 
+.notice-warning {
+  background: var(--warning-soft);
+}
+
 .notice-error {
   background: var(--danger-soft);
 }

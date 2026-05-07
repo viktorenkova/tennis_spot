@@ -25,6 +25,7 @@ export const ERROR_CODES = {
   bookingRequestNotFound: 'BOOKING_REQUEST_NOT_FOUND',
   bookingRequestInvalidTransition: 'BOOKING_REQUEST_INVALID_TRANSITION',
   bookingRequestInvalidVenueCourt: 'BOOKING_REQUEST_INVALID_VENUE_COURT',
+  bookingRequestDurationLimitExceeded: 'BOOKING_REQUEST_DURATION_LIMIT_EXCEEDED',
   bookingRequestUnavailableCourt: 'BOOKING_REQUEST_UNAVAILABLE_COURT',
   notificationNotFound: 'NOTIFICATION_NOT_FOUND',
   matchRequestNotFound: 'MATCH_REQUEST_NOT_FOUND',

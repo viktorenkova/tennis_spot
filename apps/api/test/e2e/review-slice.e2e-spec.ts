@@ -1132,6 +1132,14 @@ describe('P1 review and booking slices (e2e)', () => {
 
     expect(invalidPlayersCountResponse.body.error.code).toBe('VALIDATION_ERROR');
 
+    const overLimitResponse = await request(app.getHttpServer())
+      .get(
+        `/api/v1/booking-requests/options?cityId=${location.cityId}&bookingDate=2026-04-20&timeFrom=18:00&timeTo=23:00&playersCount=2`,
+      )
+      .expect(400);
+
+    expect(overLimitResponse.body.error.code).toBe('BOOKING_REQUEST_DURATION_LIMIT_EXCEEDED');
+
     const noOptionsResponse = await request(app.getHttpServer())
       .get(
         `/api/v1/booking-requests/options?cityId=${location.cityId}&bookingDate=2026-04-20&timeFrom=08:00&timeTo=09:00&playersCount=2`,
@@ -1424,6 +1432,30 @@ describe('P1 review and booking slices (e2e)', () => {
 
     const response = await createBookingRequest(playerToken, venueId, courtId).expect(409);
     expect(response.body.error.code).toBe('BOOKING_REQUEST_UNAVAILABLE_COURT');
+  });
+
+  it('rejects booking intervals longer than four hours', async () => {
+    const { venueId, courtId } = await prepareVerifiedInventory();
+    const playerToken = await demoLogin('demo-player');
+    await createPlayerProfile(playerToken).expect(201);
+
+    const overLimitBookingResponse = await request(app.getHttpServer())
+      .post('/api/v1/booking-requests')
+      .set('Authorization', `Bearer ${playerToken}`)
+      .send({
+        venueId,
+        courtId,
+        bookingDate: '2026-04-20',
+        timeFrom: '18:00',
+        timeTo: '23:00',
+        playersCount: 2,
+        commentFromPlayer: 'Long booking',
+      })
+      .expect(400);
+
+    expect(overLimitBookingResponse.body.error.code).toBe(
+      'BOOKING_REQUEST_DURATION_LIMIT_EXCEEDED',
+    );
   });
 
   it('does not allow conflicting booking requests for the same court and time', async () => {
@@ -1827,6 +1859,16 @@ describe('P1 review and booking slices (e2e)', () => {
     ).expect(400);
 
     expect(invalidDateResponse.body.error.code).toBe('MATCH_REQUEST_INVALID_SCHEDULE');
+
+    const overLimitMatchResponse = await createMatchRequest(
+      initiatorToken,
+      opponentProfileResponse.body.data.userId,
+      {
+        proposedTimeTo: '23:00',
+      },
+    ).expect(400);
+
+    expect(overLimitMatchResponse.body.error.code).toBe('BOOKING_REQUEST_DURATION_LIMIT_EXCEEDED');
 
     const matchRequestResponse = await createMatchRequest(
       initiatorToken,
