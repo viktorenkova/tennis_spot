@@ -11,19 +11,19 @@
     "moduleResolution": "Bundler",
     "allowJs": false,
     "noEmit": true,
-    "incremental": true,
     "plugins": [
       {
         "name": "next"
       }
     ],
-    "isolatedModules": true
+    "isolatedModules": true,
+    "incremental": true
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    "next-build/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
