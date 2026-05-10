@@ -68,6 +68,7 @@ function getContextLabel(complaint: Complaint) {
 
 function ComplaintsContent() {
   const searchParams = useSearchParams();
+  const complaintIdFromQuery = searchParams.get('complaintId');
   const { session, isLoaded } = useDemoSession();
   const [type, setType] = useState('other');
   const [description, setDescription] = useState('');
@@ -111,6 +112,12 @@ function ComplaintsContent() {
   useEffect(() => {
     void loadComplaints();
   }, [loadComplaints]);
+
+  useEffect(() => {
+    if (complaintIdFromQuery) {
+      setSelectedComplaintId(complaintIdFromQuery);
+    }
+  }, [complaintIdFromQuery]);
 
   async function submitComplaint() {
     if (!session) {
@@ -244,7 +251,9 @@ function ComplaintsContent() {
               <button
                 key={complaint.id}
                 type="button"
-                className="list-row list-row-detailed"
+                className={`list-row list-row-detailed${
+                  selectedComplaint?.id === complaint.id ? ' list-row-highlight' : ''
+                }`}
                 onClick={() => setSelectedComplaintId(complaint.id)}
               >
                 <div className="complaint-summary">

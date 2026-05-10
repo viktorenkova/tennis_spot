@@ -19,3 +19,4 @@ apps/api/prisma/dev.db-journal
 
 .idea
 .vscode
+agents.md

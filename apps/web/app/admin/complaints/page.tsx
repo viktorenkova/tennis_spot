@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { DemoShell } from '../../../src/components/demo-shell';
 import { Card, Notice, StatusBadge } from '../../../src/components/ui';
 import { apiRequest } from '../../../src/lib/api';
@@ -75,7 +76,9 @@ function getContextLabel(complaint: Complaint) {
   return 'Контекст не указан';
 }
 
-export default function AdminComplaintsPage() {
+function AdminComplaintsContent() {
+  const searchParams = useSearchParams();
+  const highlightedComplaintId = searchParams.get('complaintId');
   const { session, isLoaded } = useDemoSession();
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -200,7 +203,12 @@ export default function AdminComplaintsPage() {
             const isFinal = complaint.status === 'resolved' || complaint.status === 'rejected';
 
             return (
-              <article key={complaint.id} className="list-row list-row-detailed">
+              <article
+                key={complaint.id}
+                className={`list-row list-row-detailed${
+                  highlightedComplaintId === complaint.id ? ' list-row-highlight' : ''
+                }`}
+              >
                 <div>
                   <strong>{getUserLabel(complaint)}</strong>
                   <span>
@@ -258,5 +266,13 @@ export default function AdminComplaintsPage() {
         </div>
       </Card>
     </DemoShell>
+  );
+}
+
+export default function AdminComplaintsPage() {
+  return (
+    <Suspense fallback={<Notice>Загружаем жалобы...</Notice>}>
+      <AdminComplaintsContent />
+    </Suspense>
   );
 }

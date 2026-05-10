@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { DemoShell } from '../../src/components/demo-shell';
 import { Card, Notice, StatusBadge } from '../../src/components/ui';
 import { apiRequest } from '../../src/lib/api';
@@ -172,8 +172,10 @@ function MatchBookingBlock({
   );
 }
 
-export default function MatchRequestsPage() {
+function MatchRequestsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const highlightedMatchRequestId = searchParams.get('matchRequestId');
   const { session, isLoaded } = useDemoSession();
   const [incoming, setIncoming] = useState<MatchRequest[]>([]);
   const [outgoing, setOutgoing] = useState<MatchRequest[]>([]);
@@ -290,7 +292,12 @@ export default function MatchRequestsPage() {
           ) : (
             <div className="list-stack">
               {incoming.map((matchRequest) => (
-                <article key={matchRequest.id} className="list-row list-row-detailed match-card">
+                <article
+                  key={matchRequest.id}
+                  className={`list-row list-row-detailed match-card${
+                    highlightedMatchRequestId === matchRequest.id ? ' list-row-highlight' : ''
+                  }`}
+                >
                   <div className="match-card-main">
                     <div>
                       <strong>{getPlayerName(matchRequest.initiator.playerProfile)}</strong>
@@ -363,7 +370,12 @@ export default function MatchRequestsPage() {
           ) : (
             <div className="list-stack">
               {outgoing.map((matchRequest) => (
-                <article key={matchRequest.id} className="list-row list-row-detailed match-card">
+                <article
+                  key={matchRequest.id}
+                  className={`list-row list-row-detailed match-card${
+                    highlightedMatchRequestId === matchRequest.id ? ' list-row-highlight' : ''
+                  }`}
+                >
                   <div className="match-card-main">
                     <div>
                       <strong>{getPlayerName(matchRequest.opponent.playerProfile)}</strong>
@@ -417,5 +429,13 @@ export default function MatchRequestsPage() {
         </Card>
       </div>
     </DemoShell>
+  );
+}
+
+export default function MatchRequestsPage() {
+  return (
+    <Suspense fallback={<Notice>Загружаем вызовы на игру...</Notice>}>
+      <MatchRequestsContent />
+    </Suspense>
   );
 }

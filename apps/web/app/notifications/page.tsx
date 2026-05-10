@@ -6,6 +6,7 @@ import { DemoShell } from '../../src/components/demo-shell';
 import { Card, Notice, StatusBadge } from '../../src/components/ui';
 import { apiRequest } from '../../src/lib/api';
 import { formatDateTime, formatNotificationType } from '../../src/lib/labels';
+import { resolveNotificationLink } from '../../src/lib/notification-links';
 import { useDemoSession } from '../../src/lib/session';
 
 type NotificationItem = {
@@ -27,30 +28,6 @@ type UnreadCount = {
 type ReadAllResult = {
   updatedCount: number;
 };
-
-function getRelatedHref(notification: NotificationItem) {
-  if (!notification.relatedEntityType || !notification.relatedEntityId) {
-    return null;
-  }
-
-  if (notification.relatedEntityType === 'booking_request') {
-    return '/booking-requests';
-  }
-
-  if (notification.relatedEntityType === 'match_request') {
-    return '/match-requests';
-  }
-
-  if (notification.relatedEntityType === 'complaint') {
-    return '/complaints';
-  }
-
-  if (notification.type === 'verification_submitted') {
-    return `/admin/verification-requests/${notification.relatedEntityId}`;
-  }
-
-  return '/me/partner/verification';
-}
 
 export default function NotificationsPage() {
   const { session, isLoaded } = useDemoSession();
@@ -213,7 +190,7 @@ export default function NotificationsPage() {
         ) : (
           <div className="list-stack">
             {notifications.map((notification) => {
-              const relatedHref = getRelatedHref(notification);
+              const target = resolveNotificationLink(notification, session);
 
               return (
                 <article
@@ -229,9 +206,17 @@ export default function NotificationsPage() {
                       Создано: {formatDateTime(notification.createdAt)} · Событие:{' '}
                       {formatNotificationType(notification.type)}
                     </p>
-                    {relatedHref ? (
-                      <Link href={relatedHref} className="inline-link">
-                        Перейти к связанному разделу
+                    {target ? (
+                      <Link
+                        href={target.href}
+                        className="inline-link"
+                        onClick={() => {
+                          if (!notification.isRead) {
+                            void markAsRead(notification.id);
+                          }
+                        }}
+                      >
+                        {target.label}
                       </Link>
                     ) : null}
                   </div>

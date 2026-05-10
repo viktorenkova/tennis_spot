@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { DemoShell } from '../../../../src/components/demo-shell';
 import { Card, Notice, StatusBadge } from '../../../../src/components/ui';
 import { apiRequest } from '../../../../src/lib/api';
@@ -82,7 +83,9 @@ function canComplete(status: string) {
   return status === 'confirmed';
 }
 
-export default function PartnerBookingRequestsPage() {
+function PartnerBookingRequestsContent() {
+  const searchParams = useSearchParams();
+  const highlightedBookingRequestId = searchParams.get('bookingRequestId');
   const { session, isLoaded } = useDemoSession();
   const [partnerProfile, setPartnerProfile] = useState<PartnerProfile | null>(null);
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
@@ -208,7 +211,10 @@ export default function PartnerBookingRequestsPage() {
         ) : (
           <div className="list-stack">
             {bookingRequests.map((bookingRequest) => (
-              <Card key={bookingRequest.id}>
+              <Card
+                key={bookingRequest.id}
+                className={highlightedBookingRequestId === bookingRequest.id ? 'list-row-highlight' : undefined}
+              >
                 <div className="card-header-row">
                   <div>
                     <h3>
@@ -300,5 +306,13 @@ export default function PartnerBookingRequestsPage() {
         )}
       </Card>
     </DemoShell>
+  );
+}
+
+export default function PartnerBookingRequestsPage() {
+  return (
+    <Suspense fallback={<Notice>Загружаем входящие заявки...</Notice>}>
+      <PartnerBookingRequestsContent />
+    </Suspense>
   );
 }

@@ -2,8 +2,20 @@
 
 import { ReactNode } from 'react';
 
-export function Card({ children, accent = false }: { children: ReactNode; accent?: boolean }) {
-  return <section className={`card${accent ? ' card-accent' : ''}`}>{children}</section>;
+export function Card({
+  children,
+  accent = false,
+  className,
+}: {
+  children: ReactNode;
+  accent?: boolean;
+  className?: string;
+}) {
+  return (
+    <section className={`card${accent ? ' card-accent' : ''}${className ? ` ${className}` : ''}`}>
+      {children}
+    </section>
+  );
 }
 
 export function StatusBadge({
