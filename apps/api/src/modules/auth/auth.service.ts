@@ -282,7 +282,34 @@ export class AuthService {
   }
 
   private createRefreshExpiryDate() {
-    return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const refreshTtl = this.configService.get<string>('auth.refreshTtl', '30d');
+    return new Date(Date.now() + this.parseDurationToMilliseconds(refreshTtl));
+  }
+
+  private parseDurationToMilliseconds(value: string) {
+    const normalized = value.trim();
+    const match = /^(\d+)(ms|s|m|h|d)?$/.exec(normalized);
+
+    if (!match) {
+      return 30 * 24 * 60 * 60 * 1000;
+    }
+
+    const amount = Number(match[1]);
+    const unit = match[2] ?? 'ms';
+
+    switch (unit) {
+      case 'd':
+        return amount * 24 * 60 * 60 * 1000;
+      case 'h':
+        return amount * 60 * 60 * 1000;
+      case 'm':
+        return amount * 60 * 1000;
+      case 's':
+        return amount * 1000;
+      case 'ms':
+      default:
+        return amount;
+    }
   }
 
   private generateCode() {

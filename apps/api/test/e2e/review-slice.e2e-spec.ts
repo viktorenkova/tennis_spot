@@ -430,6 +430,32 @@ describe('P1 review and booking slices (e2e)', () => {
     expect(roles).not.toContain('superadmin');
   });
 
+  it('rejects an access token when the user is no longer active', async () => {
+    const phone = '+79991234571';
+    const token = await phoneLogin(phone);
+
+    const meResponse = await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    await prisma.user.update({
+      where: {
+        id: meResponse.body.data.id,
+      },
+      data: {
+        status: 'blocked',
+      },
+    });
+
+    const blockedResponse = await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(401);
+
+    expect(blockedResponse.body.error.code).toBe('UNAUTHORIZED');
+  });
+
   it('keeps unverified partner venues out of public catalog and booking discovery', async () => {
     const token = await phoneLogin('+79991234570');
     await selectOnboardingRole(token, 'partner');

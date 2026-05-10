@@ -434,6 +434,7 @@ export class InMemoryPrismaService {
     findUnique: async (_args: any) => null,
     findMany: async (_args: any) => [],
     create: async (_args: any) => null,
+    update: async (_args: any) => null,
     upsert: async (_args: any) => null,
   };
 
@@ -938,6 +939,17 @@ export class InMemoryPrismaService {
         });
       }
 
+      return this.withUserIncludes(user, include);
+    };
+
+    this.user.update = async ({ where, data, include }: any) => {
+      const user = this.users.find((item) => item.id === where.id || item.phone === where.phone);
+
+      if (!user) {
+        return null;
+      }
+
+      Object.assign(user, data, { updatedAt: new Date() });
       return this.withUserIncludes(user, include);
     };
 

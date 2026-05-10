@@ -67,6 +67,7 @@ const bookingDetailsInclude = Prisma.validator<Prisma.BookingRequestInclude>()({
 type BookingRequestRecord = Prisma.BookingRequestGetPayload<{
   include: typeof bookingDetailsInclude;
 }>;
+type PrismaClientLike = PrismaService | Prisma.TransactionClient;
 
 const bookingOptionVenueInclude = Prisma.validator<Prisma.VenueInclude>()({
   address: {
@@ -94,6 +95,7 @@ const allowedTransitions: Record<BookingRequestStatus, BookingRequestStatus[]> =
   expired: [],
   completed: [],
 };
+const activeConflictStatuses: BookingRequestStatus[] = ['pending', 'confirmed'];
 
 @Injectable()
 export class BookingService {
@@ -219,7 +221,15 @@ export class BookingService {
       dto.timeTo,
     );
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.runSerializableBookingTransaction(async (tx) => {
+      await this.ensureNoActiveCourtConflict(
+        tx,
+        court.id,
+        bookingDate,
+        dto.timeFrom,
+        dto.timeTo,
+      );
+
       const bookingRequest = await tx.bookingRequest.create({
         data: {
           playerProfileId: playerProfile.id,
@@ -368,7 +378,15 @@ export class BookingService {
     const secondPlayerId =
       userId === matchRequest.initiatorId ? matchRequest.opponentId : matchRequest.initiatorId;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.runSerializableBookingTransaction(async (tx) => {
+      await this.ensureNoActiveCourtConflict(
+        tx,
+        court.id,
+        bookingDate,
+        matchRequest.proposedTimeFrom,
+        matchRequest.proposedTimeTo,
+      );
+
       const bookingRequest = await tx.bookingRequest.create({
         data: {
           playerProfileId: playerProfile.id,
@@ -761,6 +779,74 @@ export class BookingService {
       code: ERROR_CODES.bookingRequestInvalidTransition,
       message: 'Недопустимый переход статуса заявки на бронирование.',
     });
+  }
+
+  private async runSerializableBookingTransaction<T>(
+    callback: (tx: Prisma.TransactionClient) => Promise<T>,
+  ) {
+    try {
+      return await this.prisma.$transaction(callback, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      if (this.isSerializableTransactionConflict(error)) {
+        throw new AppError(HttpStatus.CONFLICT, {
+          code: ERROR_CODES.bookingRequestUnavailableCourt,
+          message: 'Выбранный интервал недоступен для бронирования.',
+          fields: {
+            timeFrom: ['Выберите доступный интервал из расписания корта.'],
+          },
+        });
+      }
+
+      throw error;
+    }
+  }
+
+  private async ensureNoActiveCourtConflict(
+    client: PrismaClientLike,
+    courtId: string,
+    bookingDate: Date,
+    timeFrom: string,
+    timeTo: string,
+  ) {
+    const conflictingBooking = await client.bookingRequest.findFirst({
+      where: {
+        courtId,
+        bookingDate,
+        status: {
+          in: activeConflictStatuses,
+        },
+        timeFrom: {
+          lt: timeTo,
+        },
+        timeTo: {
+          gt: timeFrom,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!conflictingBooking) {
+      return;
+    }
+
+    throw new AppError(HttpStatus.CONFLICT, {
+      code: ERROR_CODES.bookingRequestUnavailableCourt,
+      message: 'Выбранный интервал недоступен для бронирования.',
+      fields: {
+        timeFrom: ['Выберите доступный интервал из расписания корта.'],
+      },
+    });
+  }
+
+  private isSerializableTransactionConflict(error: unknown) {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2034'
+    );
   }
 
   private async getPlayerProfileOrThrow(userId: string) {
