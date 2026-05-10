@@ -92,6 +92,27 @@ describe('P1 review and booking slices (e2e)', () => {
       });
   }
 
+  function updatePlayerAvatar(
+    accessToken: string,
+    overrides: Partial<{
+      originalName: string;
+      storageKey: string;
+      mimeType: string;
+      sizeBytes: number;
+    }> = {},
+  ) {
+    return request(app.getHttpServer())
+      .post('/api/v1/player/profile/me/avatar')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        originalName: 'avatar.png',
+        storageKey: `avatars/${Date.now()}-avatar.png`,
+        mimeType: 'image/png',
+        sizeBytes: 2048,
+        ...overrides,
+      });
+  }
+
   function createPartnerProfile(accessToken: string, cityId: string, districtId?: string) {
     return request(app.getHttpServer())
       .post('/api/v1/partner/profile')
@@ -615,6 +636,42 @@ describe('P1 review and booking slices (e2e)', () => {
       .expect(200);
 
     expect(partnerProfileAfterApproval.body.data.verificationStatus).toBe('verified');
+  });
+
+  it('lets a player attach avatar metadata to their profile', async () => {
+    const playerToken = await phoneLogin('+79990001010');
+    await createPlayerProfile(playerToken, 'Avatar', 'Player').expect(201);
+
+    const avatarResponse = await updatePlayerAvatar(playerToken, {
+      originalName: 'avatar.webp',
+      storageKey: 'avatars/player-avatar.webp',
+      mimeType: 'image/webp',
+      sizeBytes: 4096,
+    }).expect(201);
+
+    expect(avatarResponse.body.success).toBe(true);
+    expect(avatarResponse.body.data.avatarFileId).toBeDefined();
+    expect(avatarResponse.body.data.avatarFile).toEqual(
+      expect.objectContaining({
+        originalName: 'avatar.webp',
+        storageBucket: 'pending',
+        storageKey: 'avatars/player-avatar.webp',
+        mimeType: 'image/webp',
+        sizeBytes: 4096,
+      }),
+    );
+
+    const profileResponse = await request(app.getHttpServer())
+      .get('/api/v1/player/profile/me')
+      .set('Authorization', `Bearer ${playerToken}`)
+      .expect(200);
+
+    expect(profileResponse.body.data.avatarFile).toEqual(
+      expect.objectContaining({
+        id: avatarResponse.body.data.avatarFileId,
+        storageKey: 'avatars/player-avatar.webp',
+      }),
+    );
   });
 
   it('creates verification notifications and supports read actions', async () => {

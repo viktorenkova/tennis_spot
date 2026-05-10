@@ -4,6 +4,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 import { CreatePlayerProfileDto } from './dto/create-player-profile.dto';
+import { UpdatePlayerAvatarDto } from './dto/update-player-avatar.dto';
 import { UpdatePlayerPreferencesDto } from './dto/update-player-preferences.dto';
 import { UpdatePlayerProfileDto } from './dto/update-player-profile.dto';
 import { UpdatePlayerVisibilityDto } from './dto/update-player-visibility.dto';
@@ -42,8 +43,8 @@ export class PlayerController {
   }
 
   @Post('player/profile/me/avatar')
-  updateAvatar() {
-    return this.playerService.updateAvatar();
+  updateAvatar(@CurrentUser() user: JwtPayload, @Body() dto: UpdatePlayerAvatarDto) {
+    return this.playerService.updateAvatar(user.sub, dto);
   }
 
   @Get('players')

@@ -1,12 +1,7 @@
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-  NotImplementedException,
-} from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreatePlayerProfileDto } from './dto/create-player-profile.dto';
+import { UpdatePlayerAvatarDto } from './dto/update-player-avatar.dto';
 import { UpdatePlayerPreferencesDto } from './dto/update-player-preferences.dto';
 import { UpdatePlayerProfileDto } from './dto/update-player-profile.dto';
 import { UpdatePlayerVisibilityDto } from './dto/update-player-visibility.dto';
@@ -21,6 +16,7 @@ export class PlayerService {
       include: {
         city: true,
         district: true,
+        avatarFile: true,
         visibilitySettings: true,
         playPreferences: true,
       },
@@ -49,6 +45,7 @@ export class PlayerService {
         },
       },
       include: {
+        avatarFile: true,
         visibilitySettings: true,
         playPreferences: true,
       },
@@ -62,6 +59,7 @@ export class PlayerService {
       where: { userId },
       data: dto,
       include: {
+        avatarFile: true,
         visibilitySettings: true,
         playPreferences: true,
       },
@@ -94,10 +92,35 @@ export class PlayerService {
     });
   }
 
-  updateAvatar() {
-    throw new NotImplementedException(
-      'Загрузка аватара будет реализована позже в модуле файлов с S3-совместимым хранилищем.',
-    );
+  async updateAvatar(userId: string, dto: UpdatePlayerAvatarDto) {
+    await this.ensureProfile(userId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const file = await tx.file.create({
+        data: {
+          originalName: dto.originalName,
+          storageBucket: 'pending',
+          storageKey: dto.storageKey,
+          mimeType: dto.mimeType,
+          sizeBytes: dto.sizeBytes,
+          uploadedByUserId: userId,
+        },
+      });
+
+      return tx.playerProfile.update({
+        where: { userId },
+        data: {
+          avatarFileId: file.id,
+        },
+        include: {
+          city: true,
+          district: true,
+          avatarFile: true,
+          visibilitySettings: true,
+          playPreferences: true,
+        },
+      });
+    });
   }
 
   listPlayers() {
@@ -113,6 +136,7 @@ export class PlayerService {
       include: {
         city: true,
         district: true,
+        avatarFile: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -134,6 +158,7 @@ export class PlayerService {
       include: {
         city: true,
         district: true,
+        avatarFile: true,
       },
     });
 

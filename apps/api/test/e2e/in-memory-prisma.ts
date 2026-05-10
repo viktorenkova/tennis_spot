@@ -2402,6 +2402,11 @@ export class InMemoryPrismaService {
         : {}),
       ...(include?.city ? { city: null } : {}),
       ...(include?.district ? { district: null } : {}),
+      ...(include?.avatarFile
+        ? {
+            avatarFile: this.files.find((file) => file.id === profile.avatarFileId) ?? null,
+          }
+        : {}),
     };
   }
 
