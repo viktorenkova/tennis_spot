@@ -6,34 +6,36 @@ export default function HomePage() {
   return (
     <DemoShell
       title="Tennis Spot"
-      description="Платформа для теннисистов и площадок: игроки ищут корты и партнёров, клубы и школы принимают заявки после проверки."
+      description="Найдите корт, соперника или разместите площадку для игроков вашего города."
     >
       <section className="public-hero-actions">
-        <Link href="/auth/register" className="primary-button">
-          Зарегистрироваться
+        <Link href="/booking-requests" className="primary-button">
+          Найти корт
         </Link>
-        <Link href="/auth/login" className="secondary-button">
-          Войти
+        <Link href="/players" className="secondary-button">
+          Найти партнёра
+        </Link>
+        <Link href="/auth/register" className="secondary-button">
+          Разместить площадку
         </Link>
       </section>
 
       <div className="split-grid">
         <Card accent>
-          <h3>Для игроков</h3>
+          <h3>Игрокам</h3>
           <p className="muted">
-            Создайте аккаунт, заполните профиль, ищите корты и игроков, отправляйте
-            заявки на бронирование и вызовы на игру.
+            Подберите корт по дате, времени и району, отправьте заявку на бронь и найдите
+            соперника для игры.
           </p>
-          <Link href="/auth/register" className="inline-link">
-            Начать как игрок
+          <Link href="/booking-requests" className="inline-link">
+            Перейти к поиску корта
           </Link>
         </Card>
 
         <Card>
-          <h3>Для клубов, школ и организаторов</h3>
+          <h3>Клубам, школам и организаторам</h3>
           <p className="muted">
-            Заполните профиль партнёра, добавьте документы и отправьте заявку на
-            проверку. До верификации площадки не попадают в публичный каталог.
+            Добавьте профиль, площадки, корты и расписание, чтобы получать заявки от игроков.
           </p>
           <Link href="/auth/register" className="inline-link">
             Начать как партнёр
@@ -42,17 +44,9 @@ export default function HomePage() {
       </div>
 
       <Notice title="Как работает проверка партнёра">
-        Администратор проверит данные и откроет доступ к публичному каталогу. До
-        подтверждения площадки партнёра не участвуют в booking discovery.
+        После заполнения профиля партнёр отправляет документы на проверку. После подтверждения
+        площадки появляются в публичном каталоге и становятся доступны для заявок.
       </Notice>
-
-      <p className="helper-copy">
-        Для smoke/debug остаётся{' '}
-        <Link href="/demo/auth" className="inline-link">
-          демо-режим для проверки сценариев
-        </Link>
-        .
-      </p>
     </DemoShell>
   );
 }

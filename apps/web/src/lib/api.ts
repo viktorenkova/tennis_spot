@@ -13,6 +13,8 @@ export type ApiEnvelope<T> = {
   } | null;
 };
 
+const DEFAULT_TIMEOUT_MS = 8000;
+
 function resolveApiBaseUrl() {
   const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
 
@@ -46,6 +48,10 @@ function getFriendlyNetworkMessage(error: unknown) {
     return 'Не удалось загрузить данные. Проверьте подключение и попробуйте снова.';
   }
 
+  if (error.name === 'AbortError') {
+    return 'Сервер не отвечает. Проверьте, что API запущен, и повторите действие.';
+  }
+
   const message = error.message.toLowerCase();
 
   if (
@@ -55,7 +61,7 @@ function getFriendlyNetworkMessage(error: unknown) {
     message.includes('load failed') ||
     message.includes('econnrefused')
   ) {
-    return 'Не удалось загрузить данные. Проверьте подключение и попробуйте снова.';
+    return 'Сервер недоступен. Проверьте, что API и база данных запущены, затем повторите действие.';
   }
 
   return 'Ошибка сервера. Попробуйте снова чуть позже.';
@@ -79,10 +85,24 @@ function formatFieldErrors(fields?: Record<string, string[]>) {
 
 export async function apiRequest<T>(
   path: string,
-  options: RequestInit & { session?: DemoSession | null } = {},
+  options: RequestInit & { session?: DemoSession | null; timeoutMs?: number } = {},
 ): Promise<ApiEnvelope<T>> {
   const baseUrl = resolveApiBaseUrl();
   const headers = new Headers(options.headers);
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(
+    () => controller.abort(),
+    options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+  );
+  const callerSignal = options.signal;
+
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      controller.abort();
+    } else {
+      callerSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
 
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json');
@@ -93,10 +113,16 @@ export async function apiRequest<T>(
   }
 
   try {
+    const requestOptions = { ...options };
+    delete requestOptions.session;
+    delete requestOptions.timeoutMs;
+    delete requestOptions.signal;
+
     const response = await fetch(resolveApiUrl(baseUrl, path), {
-      ...options,
+      ...requestOptions,
       headers,
       cache: 'no-store',
+      signal: controller.signal,
     });
 
     const rawText = await response.text();
@@ -141,9 +167,11 @@ export async function apiRequest<T>(
       data: null,
       meta: {},
       error: {
-        code: 'NETWORK_ERROR',
+        code: error instanceof Error && error.name === 'AbortError' ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR',
         message: getFriendlyNetworkMessage(error),
       },
     };
+  } finally {
+    globalThis.clearTimeout(timeout);
   }
 }

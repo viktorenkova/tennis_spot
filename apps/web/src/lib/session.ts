@@ -27,6 +27,7 @@ export type DemoSession = {
 };
 
 const STORAGE_KEY = 'tennis_spot.demo_session';
+const SESSION_CHANGED_EVENT = 'tennis_spot.session_changed';
 
 export function readSession() {
   if (typeof window === 'undefined') {
@@ -54,10 +55,12 @@ export function writeSession(session: DemoSession | null) {
 
   if (!session) {
     window.localStorage.removeItem(STORAGE_KEY);
+    window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
     return;
   }
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 }
 
 export function hasRole(session: DemoSession | null, role: SessionUserRole) {
@@ -73,8 +76,20 @@ export function useDemoSession() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    setSession(readSession());
+    const syncSession = () => {
+      setSession(readSession());
+    };
+
+    syncSession();
     setIsLoaded(true);
+
+    window.addEventListener('storage', syncSession);
+    window.addEventListener(SESSION_CHANGED_EVENT, syncSession);
+
+    return () => {
+      window.removeEventListener('storage', syncSession);
+      window.removeEventListener(SESSION_CHANGED_EVENT, syncSession);
+    };
   }, []);
 
   const updateSession = (nextSession: DemoSession | null) => {

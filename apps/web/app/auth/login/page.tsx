@@ -6,7 +6,7 @@ export default function LoginPage() {
   return (
     <DemoShell
       title="Вход"
-      description="Войдите по телефону. Если профиль ещё не заполнен, мы предложим выбрать сценарий и продолжить onboarding."
+      description="Войдите по телефону, чтобы продолжить бронирование, управление площадкой или работу с заявками."
     >
       <PhoneAuthFlow mode="login" />
       <p className="helper-copy">
