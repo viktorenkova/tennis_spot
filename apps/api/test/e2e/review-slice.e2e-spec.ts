@@ -384,6 +384,8 @@ describe('P1 review and booking slices (e2e)', () => {
         'match_booking_created',
       ]),
     );
+    expect(response.body.data).not.toHaveProperty('tournamentStatus');
+    expect(response.body.data).not.toHaveProperty('tournamentRegistrationStatus');
   });
 
   it('lets a public phone user choose the player scenario', async () => {

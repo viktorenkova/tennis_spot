@@ -61,23 +61,6 @@ export const NOTIFICATION_RELATED_ENTITY_TYPES = [
   'match_request',
   'complaint',
 ] as const;
-export const TOURNAMENT_STATUSES = [
-  'draft',
-  'published',
-  'registration_open',
-  'registration_closed',
-  'ongoing',
-  'completed',
-  'archived',
-  'cancelled',
-] as const;
-export const TOURNAMENT_REGISTRATION_STATUSES = [
-  'pending',
-  'approved',
-  'rejected',
-  'waitlisted',
-  'cancelled',
-] as const;
 export const VERIFICATION_REQUEST_STATUSES = [
   'draft',
   'submitted',
@@ -120,9 +103,6 @@ export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export type NotificationRelatedEntityType =
   (typeof NOTIFICATION_RELATED_ENTITY_TYPES)[number];
-export type TournamentStatus = (typeof TOURNAMENT_STATUSES)[number];
-export type TournamentRegistrationStatus =
-  (typeof TOURNAMENT_REGISTRATION_STATUSES)[number];
 export type VerificationRequestStatus = (typeof VERIFICATION_REQUEST_STATUSES)[number];
 export type RoleKey = (typeof ROLE_KEYS)[number];
 export type PartnerTypeKey = (typeof PARTNER_TYPE_KEYS)[number];

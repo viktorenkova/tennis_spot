@@ -90,17 +90,6 @@ export class ReferenceService {
         'match_request',
         'complaint',
       ],
-      tournamentStatus: [
-        'draft',
-        'published',
-        'registration_open',
-        'registration_closed',
-        'ongoing',
-        'completed',
-        'archived',
-        'cancelled',
-      ],
-      tournamentRegistrationStatus: ['pending', 'approved', 'rejected', 'waitlisted', 'cancelled'],
       verificationRequestStatus: [
         'draft',
         'submitted',
