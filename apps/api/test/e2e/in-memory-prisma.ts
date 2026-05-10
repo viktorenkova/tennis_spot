@@ -1886,10 +1886,20 @@ export class InMemoryPrismaService {
         );
       }
 
+      if (where?.timeFrom?.lt) {
+        items = items.filter((bookingRequest) => bookingRequest.timeFrom < where.timeFrom.lt);
+      }
+
+      if (where?.timeTo?.gt) {
+        items = items.filter((bookingRequest) => bookingRequest.timeTo > where.timeTo.gt);
+      }
+
       if (orderBy?.createdAt === 'desc') {
         items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       } else if (orderBy?.createdAt === 'asc') {
         items.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      } else if (orderBy?.timeFrom === 'asc') {
+        items.sort((a, b) => a.timeFrom.localeCompare(b.timeFrom));
       }
 
       return items.map((bookingRequest) => this.withBookingRequestIncludes(bookingRequest, include));

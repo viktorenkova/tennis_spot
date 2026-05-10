@@ -96,6 +96,7 @@ const allowedTransitions: Record<BookingRequestStatus, BookingRequestStatus[]> =
   completed: [],
 };
 const activeConflictStatuses: BookingRequestStatus[] = ['pending', 'confirmed'];
+const pendingBookingRequestTtlMs = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class BookingService {
@@ -113,6 +114,9 @@ export class BookingService {
     }
 
     this.parseBookingDate(query.bookingDate);
+    await this.expirePendingBookingRequests(this.prisma, {
+      bookingDate: this.parseBookingDate(query.bookingDate),
+    });
     const requestedDurationMinutes = this.getDurationMinutes(query.timeFrom, query.timeTo);
     this.courtAvailabilityService.ensureBookingDurationWithinLimit(requestedDurationMinutes);
     const playersCount = query.playersCount ?? 2;
@@ -214,6 +218,12 @@ export class BookingService {
     this.courtAvailabilityService.ensureBookingDurationWithinLimit(durationMinutes);
     const venue = await this.getBookableVenueOrThrow(dto.venueId);
     const court = await this.getBookableCourtOrThrow(dto.venueId, dto.courtId);
+
+    await this.expirePendingBookingRequests(this.prisma, {
+      courtId: court.id,
+      bookingDate,
+    });
+
     await this.courtAvailabilityService.ensureCourtBookableInterval(
       court.id,
       dto.bookingDate,
@@ -222,6 +232,17 @@ export class BookingService {
     );
 
     return this.runSerializableBookingTransaction(async (tx) => {
+      await this.expirePendingBookingRequests(tx, {
+        courtId: court.id,
+        bookingDate,
+        timeFrom: {
+          lt: dto.timeTo,
+        },
+        timeTo: {
+          gt: dto.timeFrom,
+        },
+      });
+
       await this.ensureNoActiveCourtConflict(
         tx,
         court.id,
@@ -368,6 +389,11 @@ export class BookingService {
     const court = await this.getBookableCourtOrThrow(dto.venueId, dto.courtId);
     const playersCount = this.getPlayersCountForMatchFormat(matchRequest.format);
 
+    await this.expirePendingBookingRequests(this.prisma, {
+      courtId: court.id,
+      bookingDate,
+    });
+
     await this.courtAvailabilityService.ensureCourtBookableInterval(
       court.id,
       bookingDateText,
@@ -379,6 +405,17 @@ export class BookingService {
       userId === matchRequest.initiatorId ? matchRequest.opponentId : matchRequest.initiatorId;
 
     return this.runSerializableBookingTransaction(async (tx) => {
+      await this.expirePendingBookingRequests(tx, {
+        courtId: court.id,
+        bookingDate,
+        timeFrom: {
+          lt: matchRequest.proposedTimeTo,
+        },
+        timeTo: {
+          gt: matchRequest.proposedTimeFrom,
+        },
+      });
+
       await this.ensureNoActiveCourtConflict(
         tx,
         court.id,
@@ -468,29 +505,32 @@ export class BookingService {
 
   async listMyBookingRequests(userId: string) {
     const playerProfile = await this.getPlayerProfileOrThrow(userId);
-
-    return this.prisma.bookingRequest.findMany({
-      where: {
-        OR: [
-          {
-            playerProfileId: playerProfile.id,
-          },
-          {
-            relatedMatchRequest: {
-              is: {
-                OR: [
-                  {
-                    initiatorId: userId,
-                  },
-                  {
-                    opponentId: userId,
-                  },
-                ],
-              },
+    const where = {
+      OR: [
+        {
+          playerProfileId: playerProfile.id,
+        },
+        {
+          relatedMatchRequest: {
+            is: {
+              OR: [
+                {
+                  initiatorId: userId,
+                },
+                {
+                  opponentId: userId,
+                },
+              ],
             },
           },
-        ],
-      },
+        },
+      ],
+    };
+
+    await this.expirePendingBookingRequests(this.prisma, where);
+
+    return this.prisma.bookingRequest.findMany({
+      where,
       include: bookingListInclude,
       orderBy: {
         createdAt: 'desc',
@@ -534,11 +574,14 @@ export class BookingService {
       });
     }
 
-    return bookingRequest;
+    return this.expireBookingRequestIfNeeded(this.prisma, bookingRequest);
   }
 
   async cancelByPlayer(userId: string, bookingRequestId: string, commentFromPlayer?: string) {
-    const bookingRequest = await this.getPlayerOwnedBookingRequestOrThrow(userId, bookingRequestId);
+    const bookingRequest = await this.expireBookingRequestIfNeeded(
+      this.prisma,
+      await this.getPlayerOwnedBookingRequestOrThrow(userId, bookingRequestId),
+    );
 
     return this.transitionBookingRequest(
       bookingRequest,
@@ -556,11 +599,14 @@ export class BookingService {
 
   async listPartnerBookingRequests(userId: string) {
     const partnerProfile = await this.getPartnerProfileOrThrow(userId);
+    const where = {
+      partnerProfileId: partnerProfile.id,
+    };
+
+    await this.expirePendingBookingRequests(this.prisma, where);
 
     return this.prisma.bookingRequest.findMany({
-      where: {
-        partnerProfileId: partnerProfile.id,
-      },
+      where,
       include: bookingListInclude,
       orderBy: {
         createdAt: 'desc',
@@ -569,7 +615,10 @@ export class BookingService {
   }
 
   async confirmByPartner(userId: string, bookingRequestId: string, commentFromPartner?: string) {
-    const bookingRequest = await this.getPartnerOwnedBookingRequestOrThrow(userId, bookingRequestId);
+    const bookingRequest = await this.expireBookingRequestIfNeeded(
+      this.prisma,
+      await this.getPartnerOwnedBookingRequestOrThrow(userId, bookingRequestId),
+    );
     this.courtAvailabilityService.ensureBookingDurationWithinLimit(bookingRequest.durationMinutes);
     await this.courtAvailabilityService.ensureCourtBookableInterval(
       bookingRequest.courtId,
@@ -596,7 +645,10 @@ export class BookingService {
   }
 
   async rejectByPartner(userId: string, bookingRequestId: string, commentFromPartner?: string) {
-    const bookingRequest = await this.getPartnerOwnedBookingRequestOrThrow(userId, bookingRequestId);
+    const bookingRequest = await this.expireBookingRequestIfNeeded(
+      this.prisma,
+      await this.getPartnerOwnedBookingRequestOrThrow(userId, bookingRequestId),
+    );
 
     return this.transitionBookingRequest(
       bookingRequest,
@@ -613,7 +665,10 @@ export class BookingService {
   }
 
   async cancelByPartner(userId: string, bookingRequestId: string, commentFromPartner?: string) {
-    const bookingRequest = await this.getPartnerOwnedBookingRequestOrThrow(userId, bookingRequestId);
+    const bookingRequest = await this.expireBookingRequestIfNeeded(
+      this.prisma,
+      await this.getPartnerOwnedBookingRequestOrThrow(userId, bookingRequestId),
+    );
 
     return this.transitionBookingRequest(
       bookingRequest,
@@ -630,7 +685,10 @@ export class BookingService {
   }
 
   async completeByPartner(userId: string, bookingRequestId: string, commentFromPartner?: string) {
-    const bookingRequest = await this.getPartnerOwnedBookingRequestOrThrow(userId, bookingRequestId);
+    const bookingRequest = await this.expireBookingRequestIfNeeded(
+      this.prisma,
+      await this.getPartnerOwnedBookingRequestOrThrow(userId, bookingRequestId),
+    );
 
     return this.transitionBookingRequest(
       bookingRequest,
@@ -642,6 +700,102 @@ export class BookingService {
           commentFromPartner ?? bookingRequest.commentFromPartner ?? undefined,
       },
       commentFromPartner,
+    );
+  }
+
+  private async expirePendingBookingRequests(
+    client: PrismaClientLike,
+    where: Prisma.BookingRequestWhereInput = {},
+  ) {
+    const candidates = await client.bookingRequest.findMany({
+      where: {
+        ...where,
+        status: 'pending',
+      },
+      include: bookingDetailsInclude,
+    });
+
+    const now = new Date();
+
+    for (const bookingRequest of candidates) {
+      if (this.isPendingBookingExpired(bookingRequest, now)) {
+        await this.expireBookingRequest(client, bookingRequest);
+      }
+    }
+  }
+
+  private async expireBookingRequestIfNeeded(
+    client: PrismaClientLike,
+    bookingRequest: BookingRequestRecord,
+  ) {
+    if (!this.isPendingBookingExpired(bookingRequest)) {
+      return bookingRequest;
+    }
+
+    return this.expireBookingRequest(client, bookingRequest);
+  }
+
+  private async expireBookingRequest(client: PrismaClientLike, bookingRequest: BookingRequestRecord) {
+    this.ensureTransitionAllowed(bookingRequest.status, 'expired');
+
+    const updatedBookingRequest = await client.bookingRequest.update({
+      where: {
+        id: bookingRequest.id,
+      },
+      data: {
+        status: 'expired',
+      },
+    });
+
+    await client.bookingRequestStatusHistory.create({
+      data: {
+        bookingRequestId: bookingRequest.id,
+        oldStatus: bookingRequest.status,
+        newStatus: 'expired',
+        changedByUserId: null,
+        comment: 'Expired after 24 hours without partner response.',
+      },
+    });
+
+    await client.auditLog.create({
+      data: {
+        action: 'booking_request.expired',
+        targetEntity: 'booking_request',
+        targetId: bookingRequest.id,
+        metadata: {
+          previousStatus: bookingRequest.status,
+          nextStatus: 'expired',
+          venueId: bookingRequest.venueId,
+          courtId: bookingRequest.courtId,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    return client.bookingRequest.findUnique({
+      where: {
+        id: updatedBookingRequest.id,
+      },
+      include: bookingDetailsInclude,
+    }) as Promise<BookingRequestRecord>;
+  }
+
+  private isPendingBookingExpired(
+    bookingRequest: Pick<BookingRequestRecord, 'status' | 'submittedAt' | 'createdAt'>,
+    now = new Date(),
+  ) {
+    if (bookingRequest.status !== 'pending') {
+      return false;
+    }
+
+    return this.getPendingBookingExpirationDate(bookingRequest).getTime() <= now.getTime();
+  }
+
+  private getPendingBookingExpirationDate(
+    bookingRequest: Pick<BookingRequestRecord, 'submittedAt' | 'createdAt'>,
+  ) {
+    return new Date(
+      (bookingRequest.submittedAt ?? bookingRequest.createdAt).getTime() +
+        pendingBookingRequestTtlMs,
     );
   }
 

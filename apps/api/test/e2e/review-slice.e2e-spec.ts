@@ -297,6 +297,19 @@ describe('P1 review and booking slices (e2e)', () => {
       });
   }
 
+  async function ageBookingRequestPastPendingTtl(bookingRequestId: string) {
+    const submittedAt = new Date(Date.now() - 25 * 60 * 60 * 1000);
+
+    await prisma.bookingRequest.update({
+      where: {
+        id: bookingRequestId,
+      },
+      data: {
+        submittedAt,
+      },
+    });
+  }
+
   function createBookingFromMatchRequest(
     accessToken: string,
     matchRequestId: string,
@@ -1558,6 +1571,80 @@ describe('P1 review and booking slices (e2e)', () => {
     );
 
     expect(conflictResponse.body.error.code).toBe('BOOKING_REQUEST_UNAVAILABLE_COURT');
+  });
+
+  it('expires stale pending booking requests before partner actions', async () => {
+    const { partnerToken, venueId, courtId } = await prepareVerifiedInventory();
+    const playerToken = await demoLogin('demo-player');
+
+    await createPlayerProfile(playerToken).expect(201);
+
+    const bookingResponse = await createBookingRequest(playerToken, venueId, courtId).expect(201);
+    await ageBookingRequestPastPendingTtl(bookingResponse.body.data.id);
+
+    const partnerListResponse = await request(app.getHttpServer())
+      .get('/api/v1/partner/booking-requests')
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .expect(200);
+
+    expect(partnerListResponse.body.data[0].status).toBe('expired');
+
+    const confirmResponse = await request(app.getHttpServer())
+      .post(`/api/v1/partner/booking-requests/${bookingResponse.body.data.id}/confirm`)
+      .set('Authorization', `Bearer ${partnerToken}`)
+      .send({
+        commentFromPartner: 'Too late',
+      })
+      .expect(409);
+
+    expect(confirmResponse.body.error.code).toBe('BOOKING_REQUEST_INVALID_TRANSITION');
+
+    const playerDetailsResponse = await request(app.getHttpServer())
+      .get(`/api/v1/booking-requests/${bookingResponse.body.data.id}`)
+      .set('Authorization', `Bearer ${playerToken}`)
+      .expect(200);
+
+    expect(playerDetailsResponse.body.data.status).toBe('expired');
+    expect(playerDetailsResponse.body.data.statusHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          oldStatus: 'pending',
+          newStatus: 'expired',
+          changedByUserId: null,
+        }),
+      ]),
+    );
+  });
+
+  it('does not treat expired booking requests as court conflicts', async () => {
+    const { venueId, courtId } = await prepareVerifiedInventory();
+    const firstPlayerToken = await demoLogin('demo-player');
+    const secondPlayerToken = await demoLogin('demo-partner');
+
+    await createPlayerProfile(firstPlayerToken, 'Expired', 'Player').expect(201);
+    await createPlayerProfile(secondPlayerToken, 'Fresh', 'Player').expect(201);
+
+    const staleBookingResponse = await createBookingRequest(
+      firstPlayerToken,
+      venueId,
+      courtId,
+    ).expect(201);
+    await ageBookingRequestPastPendingTtl(staleBookingResponse.body.data.id);
+
+    const freshBookingResponse = await createBookingRequest(
+      secondPlayerToken,
+      venueId,
+      courtId,
+    ).expect(201);
+
+    expect(freshBookingResponse.body.data.status).toBe('pending');
+
+    const staleDetailsResponse = await request(app.getHttpServer())
+      .get(`/api/v1/booking-requests/${staleBookingResponse.body.data.id}`)
+      .set('Authorization', `Bearer ${firstPlayerToken}`)
+      .expect(200);
+
+    expect(staleDetailsResponse.body.data.status).toBe('expired');
   });
 
   it('prevents invalid booking status transitions', async () => {
