@@ -5,14 +5,14 @@ import { PhoneAuthFlow } from '../../../src/components/phone-auth-flow';
 export default function LoginPage() {
   return (
     <DemoShell
-      title="Вход"
-      description="Войдите по телефону, чтобы продолжить бронирование, управление площадкой или работу с заявками."
+      title="Войти в RAQET"
+      description="Продолжите матч, бронь корта или работу с клубом через быстрый вход по телефону."
     >
       <PhoneAuthFlow mode="login" />
       <p className="helper-copy">
-        Новый пользователь?{' '}
+        Впервые в RAQET?{' '}
         <Link href="/auth/register" className="inline-link">
-          Зарегистрироваться
+          Присоединиться
         </Link>
       </p>
     </DemoShell>

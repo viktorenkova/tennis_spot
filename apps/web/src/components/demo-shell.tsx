@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
@@ -27,7 +28,7 @@ const publicNavigation: NavigationSection[] = [
     title: 'Аккаунт',
     items: [
       { href: '/', label: 'Главная' },
-      { href: '/auth/register', label: 'Зарегистрироваться' },
+      { href: '/auth/register', label: 'Присоединиться' },
       { href: '/auth/login', label: 'Войти' },
     ],
   },
@@ -35,30 +36,30 @@ const publicNavigation: NavigationSection[] = [
 
 const productNavigation: NavigationSection[] = [
   {
-    title: 'Игрок',
+    title: 'Игрокам',
     items: [
-      { href: '/booking-requests', label: 'Забронировать корт', roles: ['player'] },
-      { href: '/players', label: 'Игроки', roles: ['player'] },
-      { href: '/match-requests', label: 'Вызовы', roles: ['player'] },
+      { href: '/booking-requests', label: 'Найти корт', roles: ['player'] },
+      { href: '/players', label: 'Игроки рядом', roles: ['player'] },
+      { href: '/match-requests', label: 'Матчи', roles: ['player'] },
       { href: '/me/player', label: 'Профиль игрока', roles: ['player'] },
-      { href: '/complaints', label: 'Жалобы', roles: ['player', 'partner'] },
+      { href: '/complaints', label: 'Обращения', roles: ['player', 'partner'] },
       { href: '/notifications', label: 'Уведомления', roles: ['player', 'partner', 'admin', 'superadmin'] },
     ],
   },
   {
-    title: 'Партнёр',
+    title: 'Клубам',
     items: [
-      { href: '/me/partner', label: 'Кабинет партнёра', roles: ['partner'] },
-      { href: '/me/partner/venues', label: 'Мои площадки', roles: ['partner'] },
-      { href: '/me/partner/verification', label: 'Верификация', roles: ['partner'] },
+      { href: '/me/partner', label: 'Кабинет клуба', roles: ['partner'] },
+      { href: '/me/partner/venues', label: 'Площадки и корты', roles: ['partner'] },
+      { href: '/me/partner/verification', label: 'Проверка профиля', roles: ['partner'] },
       { href: '/me/partner/booking-requests', label: 'Входящие заявки', roles: ['partner'] },
     ],
   },
   {
-    title: 'Администрирование',
+    title: 'Команда',
     items: [
-      { href: '/admin/verification-requests', label: 'Верификация партнёров', roles: ['admin', 'superadmin'] },
-      { href: '/admin/complaints', label: 'Жалобы', roles: ['admin', 'superadmin'] },
+      { href: '/admin/verification-requests', label: 'Проверка клубов', roles: ['admin', 'superadmin'] },
+      { href: '/admin/complaints', label: 'Обращения', roles: ['admin', 'superadmin'] },
     ],
   },
 ];
@@ -87,6 +88,21 @@ function isActivePath(pathname: string, href: string) {
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function BrandLogo({ compact = false }: { compact?: boolean }) {
+  return (
+    <span className="brand-mark" aria-label="RAQET">
+      <Image
+        src="/brand/logo.png"
+        alt="RAQET"
+        width={520}
+        height={160}
+        className={`brand-logo${compact ? ' mobile-logo' : ''}`}
+        priority
+      />
+    </span>
+  );
 }
 
 function NavigationLinks({
@@ -183,7 +199,7 @@ export function DemoShell({
     <main className="app-shell">
       <header className="mobile-topbar">
         <Link href="/" className="mobile-brand" onClick={() => setMenuOpen(false)}>
-          Tennis Spot
+          <BrandLogo compact />
         </Link>
         <button
           type="button"
@@ -208,11 +224,11 @@ export function DemoShell({
 
       <aside className="side-panel">
         <div className="brand-block">
-          <p className="eyebrow">tennis_spot</p>
-          <h1 className="brand-title">Tennis Spot</h1>
+          <BrandLogo />
+          <p className="eyebrow">Современное теннисное сообщество</p>
           <p className="brand-copy">
-            Сервис для игроков и площадок: поиск кортов, заявки на бронь, профили игроков,
-            верификация партнёров и управление расписанием.
+            RAQET объединяет игроков, клубы, матчи и корты в одном живом пространстве для
+            современного тенниса.
           </p>
         </div>
 
@@ -223,15 +239,15 @@ export function DemoShell({
             <h2>Сессия</h2>
             <span className={`api-status api-status-${apiStatus}`}>
               {apiStatus === 'online'
-                ? 'API работает'
+                ? 'API online'
                 : apiStatus === 'offline'
-                  ? 'API недоступен'
+                  ? 'API offline'
                   : 'Проверяем API'}
             </span>
           </div>
-          {!isLoaded ? <p className="muted">Проверяем текущий вход...</p> : null}
+          {!isLoaded ? <p className="muted">Проверяем вход...</p> : null}
           {isLoaded && !session ? (
-            <p className="muted">Войдите или зарегистрируйтесь, чтобы продолжить.</p>
+            <p className="muted">Войдите или присоединитесь, чтобы продолжить.</p>
           ) : null}
           {session?.user ? (
             <>
@@ -251,7 +267,7 @@ export function DemoShell({
 
       <section className="content-panel">
         <header className="page-header">
-          <p className="eyebrow">tennis_spot</p>
+          <p className="eyebrow">RAQET</p>
           <h2>{title}</h2>
           <p className="page-copy">{description}</p>
         </header>

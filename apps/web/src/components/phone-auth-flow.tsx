@@ -37,7 +37,7 @@ function getAuthError(fallback: string, message?: string | null) {
   }
 
   if (/failed to fetch/i.test(message)) {
-    return 'Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.';
+    return 'Сервер недоступен. Проверьте API и повторите действие.';
   }
 
   return message;
@@ -69,10 +69,7 @@ export function PhoneAuthFlow({ mode }: { mode: 'login' | 'register' }) {
 
     if (!response.success || !response.data) {
       throw new Error(
-        getAuthError(
-          'Вход выполнен, но не удалось загрузить данные аккаунта.',
-          response.error?.message,
-        ),
+        getAuthError('Вход выполнен, но профиль аккаунта не загрузился.', response.error?.message),
       );
     }
 
@@ -105,9 +102,7 @@ export function PhoneAuthFlow({ mode }: { mode: 'login' | 'register' }) {
     setPhone(response.data.phone);
     setChallenge(response.data);
     setMessage(
-      response.data.code
-        ? `Код для staging: ${response.data.code}`
-        : 'Код отправлен. Введите его ниже.',
+      response.data.code ? `Код для проверки: ${response.data.code}` : 'Код отправлен. Введите его ниже.',
     );
     setLoading(false);
   };
@@ -154,7 +149,7 @@ export function PhoneAuthFlow({ mode }: { mode: 'login' | 'register' }) {
         return;
       }
 
-      setMessage('Телефон подтверждён. Выберите, как хотите начать работу.');
+      setMessage('Телефон подтверждён. Выберите, как хотите начать в RAQET.');
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Не удалось завершить вход.');
     } finally {
@@ -199,7 +194,7 @@ export function PhoneAuthFlow({ mode }: { mode: 'login' | 'register' }) {
     });
 
     if (!response.success || !response.data) {
-      setError(getAuthError('Не удалось сохранить выбранный сценарий.', response.error?.message));
+      setError(getAuthError('Не удалось сохранить выбранный путь.', response.error?.message));
       setLoading(false);
       return;
     }
@@ -214,7 +209,7 @@ export function PhoneAuthFlow({ mode }: { mode: 'login' | 'register' }) {
       {error ? <Notice kind="error">{error}</Notice> : null}
 
       <Card>
-        <h3>{mode === 'register' ? 'Телефон для регистрации' : 'Вход по телефону'}</h3>
+        <h3>{mode === 'register' ? 'Телефон для старта' : 'Вход по телефону'}</h3>
         <div className="form-stack">
           <label className="field">
             <span>Телефон</span>
@@ -256,18 +251,21 @@ export function PhoneAuthFlow({ mode }: { mode: 'login' | 'register' }) {
             onClick={verifyCode}
             disabled={loading || !challenge || Boolean(tokens)}
           >
-            {loading && challenge ? 'Проверяем...' : mode === 'register' ? 'Подтвердить телефон' : 'Войти'}
+            {loading && challenge
+              ? 'Проверяем...'
+              : mode === 'register'
+                ? 'Подтвердить телефон'
+                : 'Войти'}
           </button>
         </div>
       </Card>
 
       {mode === 'register' && tokens ? (
         <Card accent>
-          <h3>Выберите сценарий</h3>
+          <h3>Выберите свой путь</h3>
           <p className="muted">
-            Создайте аккаунт, чтобы искать корты, игроков и отправлять заявки. Если вы
-            представляете клуб, школу или организатора, заполните профиль партнёра и
-            отправьте заявку на проверку.
+            Начните как игрок, чтобы искать матчи и корты, или как клуб, чтобы принимать заявки от
+            сообщества RAQET.
           </p>
           <div className="choice-grid">
             <button
@@ -284,7 +282,7 @@ export function PhoneAuthFlow({ mode }: { mode: 'login' | 'register' }) {
               onClick={() => chooseScenario('partner')}
               disabled={loading}
             >
-              Я представитель клуба / школы / организатора
+              Я представляю клуб
             </button>
           </div>
         </Card>

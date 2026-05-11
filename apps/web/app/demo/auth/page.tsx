@@ -1,31 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import { apiRequest } from '../../../src/lib/api';
-import { DemoSession, DemoUserKey, useDemoSession } from '../../../src/lib/session';
 import { DemoShell } from '../../../src/components/demo-shell';
 import { Card, Notice, StatusBadge } from '../../../src/components/ui';
+import { apiRequest } from '../../../src/lib/api';
+import { DemoSession, DemoUserKey, useDemoSession } from '../../../src/lib/session';
 
 const demoUsers: Array<{ key: DemoUserKey; title: string; copy: string }> = [
   {
     key: 'demo-player',
     title: 'Игрок',
-    copy: 'Подходит для проверки анкеты игрока и заполнения данных с нуля.',
+    copy: 'Подходит для проверки профиля игрока, поиска кортов и матчей.',
   },
   {
     key: 'demo-partner',
-    title: 'Партнер',
-    copy: 'Подходит для заполнения профиля партнёра и отправки заявки на верификацию.',
+    title: 'Клуб',
+    copy: 'Подходит для заполнения профиля клуба, площадок и заявки на проверку.',
   },
   {
     key: 'demo-admin',
     title: 'Администратор',
-    copy: 'Подходит для проверки очереди заявок и принятия решения по верификации.',
+    copy: 'Подходит для проверки очереди заявок и модерации обращений.',
   },
   {
     key: 'review-partner',
-    title: 'Партнер с готовой заявкой',
-    copy: 'В аккаунте уже есть заполненные данные и отправленная заявка на проверку.',
+    title: 'Клуб с готовой заявкой',
+    copy: 'В аккаунте уже есть данные и отправленная заявка на проверку.',
   },
 ];
 
@@ -54,7 +54,7 @@ export default function DemoAuthPage() {
     });
 
     if (!loginResponse.success || !loginResponse.data) {
-      setError(loginResponse.error?.message ?? 'Не удалось войти в демо-аккаунт.');
+      setError(loginResponse.error?.message ?? 'Не удалось войти в проверочный аккаунт.');
       setLoadingKey(null);
       return;
     }
@@ -71,9 +71,7 @@ export default function DemoAuthPage() {
     });
 
     if (!meResponse.success || !meResponse.data) {
-      setError(
-        meResponse.error?.message ?? 'Вход выполнен, но не удалось загрузить данные аккаунта.',
-      );
+      setError(meResponse.error?.message ?? 'Вход выполнен, но данные аккаунта не загрузились.');
       setLoadingKey(null);
       return;
     }
@@ -88,11 +86,12 @@ export default function DemoAuthPage() {
 
   return (
     <DemoShell
-      title="Вход в демо"
-      description="Выберите один из подготовленных аккаунтов, чтобы быстро пройти нужный сценарий: игрок, партнер или администратор."
+      title="QA-вход"
+      description="Служебная страница для проверки сценариев RAQET: игрок, клуб и администрирование."
     >
-      <Notice title="Как пользоваться этой страницей">
-        Сначала выберите аккаунт, затем переходите в соответствующий раздел через левую навигацию.
+      <Notice title="Как пользоваться страницей">
+        Выберите аккаунт, затем переходите в нужный раздел через навигацию. Эта страница не является
+        частью публичного пользовательского пути.
       </Notice>
 
       {message ? <Notice kind="success">{message}</Notice> : null}
@@ -113,7 +112,7 @@ export default function DemoAuthPage() {
               onClick={() => handleLogin(demoUser.key)}
               disabled={loadingKey === demoUser.key}
             >
-              {loadingKey === demoUser.key ? 'Выполняем вход...' : 'Войти в этот аккаунт'}
+              {loadingKey === demoUser.key ? 'Входим...' : 'Войти в аккаунт'}
             </button>
           </Card>
         ))}

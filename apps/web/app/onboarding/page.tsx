@@ -32,7 +32,7 @@ export default function OnboardingPage() {
     });
 
     if (!response.success || !response.data) {
-      setError(response.error?.message ?? 'Не удалось сохранить выбранный сценарий.');
+      setError(response.error?.message ?? 'Не удалось сохранить выбранный путь.');
       setLoadingMode(null);
       return;
     }
@@ -46,21 +46,21 @@ export default function OnboardingPage() {
 
   return (
     <DemoShell
-      title="Выберите сценарий"
-      description="Расскажите, как вы хотите начать работу в Tennis Spot. Это можно расширить позже, но сейчас выберите первый основной путь."
+      title="Выберите свой путь"
+      description="RAQET подстраивает первый экран под вашу роль: игрок ищет матчи и корты, клуб управляет площадками и заявками."
     >
-      {!isLoaded ? <Notice>Проверяем текущий вход...</Notice> : null}
+      {!isLoaded ? <Notice>Проверяем вход...</Notice> : null}
       {isLoaded && !session ? (
-        <Notice kind="error">Сначала войдите или зарегистрируйтесь по телефону.</Notice>
+        <Notice kind="error">Сначала войдите или присоединитесь по телефону.</Notice>
       ) : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
 
       <div className="split-grid">
         <Card accent>
-          <h3>Продолжить как игрок</h3>
+          <h3>Играть в RAQET</h3>
           <p className="muted">
-            Заполните профиль игрока, чтобы искать корты, других игроков и отправлять
-            заявки на бронирование.
+            Создайте профиль игрока, находите соперников рядом, выбирайте корты и собирайте
+            следующий матч без лишней суеты.
           </p>
           <button
             type="button"
@@ -73,10 +73,10 @@ export default function OnboardingPage() {
         </Card>
 
         <Card>
-          <h3>Продолжить как партнёр</h3>
+          <h3>Развивать клуб</h3>
           <p className="muted">
-            Заполните профиль клуба, школы или организатора. После документов
-            администратор проверит данные и откроет доступ к публичному каталогу.
+            Добавьте профиль клуба, площадки, корты и расписание, чтобы принимать заявки от
+            современного теннисного сообщества.
           </p>
           <button
             type="button"
@@ -84,7 +84,7 @@ export default function OnboardingPage() {
             onClick={() => chooseScenario('partner')}
             disabled={!session || Boolean(loadingMode)}
           >
-            {loadingMode === 'partner' ? 'Сохраняем...' : 'Я партнёр'}
+            {loadingMode === 'partner' ? 'Сохраняем...' : 'Я представляю клуб'}
           </button>
         </Card>
       </div>

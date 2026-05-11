@@ -298,7 +298,7 @@ export default function PartnerProfilePage() {
               <span>Название бренда</span>
               <input
                 value={form.brandName}
-                placeholder="Например: Tennis Spot Club"
+                placeholder="Например: Riverside Tennis Club"
                 onChange={(event) =>
                   setForm((current) => ({ ...current, brandName: event.target.value }))
                 }

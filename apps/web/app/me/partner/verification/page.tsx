@@ -207,7 +207,7 @@ export default function PartnerVerificationPage() {
               </StatusBadge>
             </div>
             <p className="session-line">
-              <strong>Партнер:</strong> {partnerProfile.legalName}
+              <strong>Партнёр:</strong> {partnerProfile.legalName}
             </p>
             <p className="muted">
               Этот статус показывает, можно ли отправлять заявку и какое решение уже принято по
